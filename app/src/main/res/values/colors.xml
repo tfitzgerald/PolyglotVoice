@@ -1,3 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="pulse_spanish">#FFA726</color> <color name="pulse_english">#42A5F5</color> <color name="gray_bg">#F5F5F5</color>
-</resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="gray_bg">#F5F5F5</color>
+    
+    <color name="pulse_spanish">#FFA726</color> <color name="pulse_english">#42A5F5</color> </resources>
