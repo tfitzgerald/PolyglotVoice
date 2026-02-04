@@ -25,21 +25,21 @@ jobs:
     - name: Build Release APK
       run: ./gradlew assembleRelease
 
-    - name: Upload APK Artifact
+    - name: Find and Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: PolyglotVoice-Release-APK
-        path: app/build/outputs/apk/release/app-release-unsigned.apk
+        path: app/build/outputs/apk/release/*.apk # Using wildcard for reliability
 
     - name: Create Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
-        files: app/build/outputs/apk/release/app-release-unsigned.apk
+        files: app/build/outputs/apk/release/*.apk # Using wildcard here too
         tag_name: v${{ github.run_number }}
         name: Release v${{ github.run_number }}
         body: |
-          New build generated automatically from commit ${{ github.sha }}.
-          Download the attached 'app-release-unsigned.apk' to test.
+          New build generated automatically.
+          Check the assets below for the APK file.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
