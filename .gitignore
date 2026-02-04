@@ -1,0 +1,7 @@
+# Windows-specific ignores
+Thumbs.db
+desktop.ini
+.idea/
+build/
+*.iml
+local.properties
