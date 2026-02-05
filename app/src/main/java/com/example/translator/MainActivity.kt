@@ -13,7 +13,6 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.view.View
-import android.view.animation.Animation
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -30,7 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnClear: Button
     
     private var isListening = false
-    private var isSpanishSource = true // Toggle this to change pulse color
+    private var isSpanishSource = true 
     private var pulseAnimator: ObjectAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,8 +46,7 @@ class MainActivity : AppCompatActivity() {
         btnListen.setOnClickListener {
             if (!isListening) {
                 isListening = true
-                // Toggle language logic: You can change this to a switch later
-                isSpanishSource = !isSpanishSource 
+                isSpanishSource = !isSpanishSource // Toggles language each session
                 startContinuousSpeech()
             } else {
                 isListening = false
@@ -62,30 +60,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startContinuousSpeech() {
-        // 1. Setup Visual Pulse
+        if (!isListening) return
+
+        // UI: Start Pulse Animation
         val pulseColor = if (isSpanishSource) Color.RED else Color.BLUE
         btnListen.backgroundTintList = ColorStateList.valueOf(pulseColor)
         
-        pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
-            btnListen,
-            PropertyValuesHolder.ofFloat("scaleX", 1.2f),
-            PropertyValuesHolder.ofFloat("scaleY", 1.2f)
-        ).apply {
-            duration = 600
-            repeatCount = ObjectAnimator.INFINITE
-            repeatMode = ObjectAnimator.REVERSE
-            start()
+        if (pulseAnimator == null) {
+            pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
+                btnListen,
+                PropertyValuesHolder.ofFloat("scaleX", 1.2f),
+                PropertyValuesHolder.ofFloat("scaleY", 1.2f)
+            ).apply {
+                duration = 600
+                repeatCount = ObjectAnimator.INFINITE
+                repeatMode = ObjectAnimator.REVERSE
+            }
         }
+        pulseAnimator?.start()
 
-        // 2. Initialize Recognizer
+        // Speech Engine Setup
         speechRecognizer?.destroy()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isSpanishSource) "es-ES" else "en-US")
-            // This flag helps with some continuous listening implementations
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false) 
         }
 
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
@@ -94,16 +94,13 @@ class MainActivity : AppCompatActivity() {
                 if (!matches.isNullOrEmpty()) {
                     processTranslation(matches[0])
                 }
-                // Loop: Restart if still in listening mode
-                if (isListening) startContinuousSpeech()
+                if (isListening) startContinuousSpeech() 
             }
 
             override fun onError(error: Int) {
-                // If the user is silent, the engine times out. We restart it.
-                if (isListening) startContinuousSpeech()
+                if (isListening) startContinuousSpeech() 
             }
 
-            // Required empty overrides
             override fun onReadyForSpeech(p0: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(p0: Float) {}
@@ -117,13 +114,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopContinuousSpeech() {
+        isListening = false
         pulseAnimator?.cancel()
         btnListen.scaleX = 1.0f
         btnListen.scaleY = 1.0f
         btnListen.backgroundTintList = ColorStateList.valueOf(Color.GRAY)
         speechRecognizer?.stopListening()
         speechRecognizer?.destroy()
-        speechRecognizer = null
     }
 
     private fun processTranslation(text: String) {
@@ -131,16 +128,13 @@ class MainActivity : AppCompatActivity() {
         val target = if (isSpanishSource) TranslateLanguage.ENGLISH else TranslateLanguage.SPANISH
         val locale = if (isSpanishSource) Locale.US else Locale("es", "ES")
 
-        val options = TranslatorOptions.Builder()
-            .setSourceLanguage(source)
-            .setTargetLanguage(target)
-            .build()
+        val options = TranslatorOptions.Builder().setSourceLanguage(source).setTargetLanguage(target).build()
         val translator = Translation.getClient(options)
 
-        translator.translate(text).addOnSuccessListener { translatedText ->
-            tvTranscript.append("\nMe: $text\nAI: $translatedText\n")
+        translator.translate(text).addOnSuccessListener { result ->
+            tvTranscript.append("\nMe: $text\nAI: $result\n")
             tts.language = locale
-            tts.speak(translatedText, TextToSpeech.QUEUE_FLUSH, null, "ID")
+            tts.speak(result, TextToSpeech.QUEUE_FLUSH, null, "ID")
         }
     }
 

@@ -1,94 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/gray_bg">
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center_horizontal">
 
-    <LinearLayout
-        android:id="@+id/downloadSection"
+    <TextView
+        android:id="@+id/tvTranscript"
         android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#F0F0F0"
+        android:padding="8dp"
+        android:scrollbars="vertical"
+        android:text="Transcript will appear here..." />
+
+    <Button
+        android:id="@+id/btnClear"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:background="#FFF3E0"
-        android:visibility="gone">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Syncing Offline AI (Spanish/English)..."
-            android:textColor="#E65100"
-            android:textStyle="bold" />
-        <ProgressBar
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:indeterminate="true" />
-    </LinearLayout>
+        android:layout_marginTop="8dp"
+        android:text="Clear Chat" />
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_above="@+id/controlsArea"
-        android:layout_below="@id/downloadSection"
-        android:padding="16dp">
-        <TextView
-            android:id="@+id/tvTranscript"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Welcome! Tap the mic to start."
-            android:textSize="18sp"
-            android:textColor="#333333" />
-    </ScrollView>
+    <View
+        android:id="@+id/btnListen"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_margin="24dp"
+        android:background="@android:drawable/presence_online"
+        android:backgroundTint="@android:color/darker_gray" />
 
-    <LinearLayout
-        android:id="@+id/controlsArea"
-        android:layout_width="match_parent"
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:padding="24dp">
-		
-		<Button
-			android:id="@+id/btnClear"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="Clear Chat"
-			android:layout_gravity="end"
-			android:layout_margin="8dp" />
-        
-		<TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Tap to speak"
-            android:layout_marginBottom="16dp"/>
+        android:text="Tap icon to Start/Stop"
+        android:textSize="12sp" />
 
-        <FrameLayout
-            android:layout_width="100dp"
-            android:layout_height="100dp">
-            
-            <View
-                android:id="@+id/pulse1"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/pulse_circle"
-                android:visibility="invisible" />
-            <View
-                android:id="@+id/pulse2"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/pulse_circle"
-                android:visibility="invisible" />
-
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/btnListen"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                app:fabSize="normal"
-                app:srcCompat="@android:drawable/ic_btn_speak_now" />
-        </FrameLayout>
-    </LinearLayout>
-</RelativeLayout>
+</LinearLayout>
