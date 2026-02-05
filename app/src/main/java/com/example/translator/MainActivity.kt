@@ -1,10 +1,12 @@
 package com.example.polyglotvoice
 
 import android.Manifest
+import android.animation.ArgbEvaluator
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -54,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupTranslators() {
-        tvStatus.text = "Status: Syncing AI Models..."
+        tvStatus.text = "Status: Syncing AI..."
         val enEsOptions = TranslatorOptions.Builder()
             .setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
         val esEnOptions = TranslatorOptions.Builder()
@@ -64,23 +66,27 @@ class MainActivity : AppCompatActivity() {
         esEnTranslator = Translation.getClient(esEnOptions)
 
         val conditions = DownloadConditions.Builder().requireWifi().build()
-        
-        // Ensure both "Brains" are ready
         enEsTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
             esEnTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
                 tvStatus.text = "Status: Auto-Detect Active"
-                tvTranscript.append("\n[System]: English & Spanish models loaded.")
             }
         }
     }
 
     private fun startContinuousSpeech() {
         isListening = true
-        tvStatus.text = "Status: Listening (Auto)..."
+        tvStatus.text = "Status: Listening..."
         
+        // 1. Start the Pulse Animation (Default White/Gray while waiting)
+        btnListen.imageTintList = ColorStateList.valueOf(Color.WHITE)
         pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(btnListen,
-            PropertyValuesHolder.ofFloat("scaleX", 1.2f), PropertyValuesHolder.ofFloat("scaleY", 1.2f)).apply {
-            duration = 600; repeatCount = ObjectAnimator.INFINITE; repeatMode = ObjectAnimator.REVERSE; start()
+            PropertyValuesHolder.ofFloat("scaleX", 1.2f),
+            PropertyValuesHolder.ofFloat("scaleY", 1.2f)
+        ).apply {
+            duration = 600
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            start()
         }
 
         speechRecognizer?.destroy()
@@ -88,20 +94,18 @@ class MainActivity : AppCompatActivity() {
         
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            // "en-US" here acts as the base, but it will capture Spanish if spoken clearly
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US")
-            putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
         }
 
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle?) {
                 val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)
                 text?.let { runLanguageId(it) }
-                if (isListening) startContinuousSpeech() // Keep listening
+                if (isListening) startContinuousSpeech() 
             }
             override fun onError(error: Int) { if (isListening) startContinuousSpeech() }
             
+            // Unused but required methods
             override fun onReadyForSpeech(p0: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(p0: Float) {}
@@ -118,20 +122,22 @@ class MainActivity : AppCompatActivity() {
         languageIdentifier.identifyLanguage(text).addOnSuccessListener { languageCode ->
             when (languageCode) {
                 "es" -> {
-                    tvStatus.text = "Status: Detected Spanish"
+                    // Change Pulse to RED for Spanish
+                    updatePulseColor(Color.RED)
                     performTranslation(text, esEnTranslator, Locale.US)
                 }
                 "en" -> {
-                    tvStatus.text = "Status: Detected English"
+                    // Change Pulse to BLUE for English
+                    updatePulseColor(Color.BLUE)
                     performTranslation(text, enEsTranslator, Locale("es", "ES"))
                 }
-                else -> {
-                    tvStatus.text = "Status: Unknown Language"
-                    // Defaulting to English -> Spanish if it's unsure
-                    performTranslation(text, enEsTranslator, Locale("es", "ES"))
-                }
+                else -> performTranslation(text, enEsTranslator, Locale("es", "ES"))
             }
         }
+    }
+
+    private fun updatePulseColor(color: Int) {
+        btnListen.imageTintList = ColorStateList.valueOf(color)
     }
 
     private fun performTranslation(text: String, activeTranslator: Translator, targetLocale: Locale) {
@@ -146,7 +152,9 @@ class MainActivity : AppCompatActivity() {
         isListening = false
         tvStatus.text = "Status: Off"
         pulseAnimator?.cancel()
-        btnListen.scaleX = 1f; btnListen.scaleY = 1f
+        btnListen.scaleX = 1f
+        btnListen.scaleY = 1f
+        btnListen.imageTintList = null
         speechRecognizer?.stopListening()
         speechRecognizer?.destroy()
     }
