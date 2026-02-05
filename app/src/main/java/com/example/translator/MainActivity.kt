@@ -12,6 +12,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -31,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnListen: ImageButton
     
     private var isListening = false
+    private var isAiSpeaking = false // FLAG TO PREVENT SELF-TALK
     private var pulseAnimator: ObjectAnimator? = null
     
     private lateinit var enEsTranslator: Translator
@@ -50,7 +52,10 @@ class MainActivity : AppCompatActivity() {
         setupTranslators()
 
         btnListen.setOnClickListener {
-            if (isListening) stopContinuousSpeech() else startContinuousSpeech()
+            if (isListening) stopContinuousSpeech() else {
+                isListening = true
+                startContinuousSpeech()
+            }
         }
     }
 
@@ -73,13 +78,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startContinuousSpeech() {
-        isListening = true
-        tvStatus.text = "Status: Listening..."
-        
-        // --- FIXED PULSE LOGIC ---
+        if (!isListening || isAiSpeaking) return // DON'T START IF AI IS TALKING
+
+        // Pulse Animation
         if (pulseAnimator == null) {
-            pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
-                btnListen,
+            pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(btnListen,
                 PropertyValuesHolder.ofFloat("scaleX", 1.25f),
                 PropertyValuesHolder.ofFloat("scaleY", 1.25f)
             ).apply {
@@ -88,17 +91,13 @@ class MainActivity : AppCompatActivity() {
                 repeatMode = ObjectAnimator.REVERSE
             }
         }
-        
-        if (pulseAnimator?.isStarted == false) {
-            btnListen.backgroundTintList = ColorStateList.valueOf(Color.LTGRAY)
-            pulseAnimator?.start()
-        }
+        if (pulseAnimator?.isStarted == false) pulseAnimator?.start()
 
         speechRecognizer?.destroy()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.ACTION_RECOGNIZE_SPEECH, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
         }
 
@@ -106,10 +105,12 @@ class MainActivity : AppCompatActivity() {
             override fun onResults(results: Bundle?) {
                 val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)
                 text?.let { runLanguageId(it) }
-                if (isListening) startContinuousSpeech() 
+                // Only loop if AI isn't about to speak
+                if (isListening && !isAiSpeaking) startContinuousSpeech() 
             }
-            override fun onError(error: Int) { if (isListening) startContinuousSpeech() }
-            
+            override fun onError(error: Int) { 
+                if (isListening && !isAiSpeaking) startContinuousSpeech() 
+            }
             override fun onReadyForSpeech(p0: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(p0: Float) {}
@@ -126,12 +127,10 @@ class MainActivity : AppCompatActivity() {
         languageIdentifier.identifyLanguage(text).addOnSuccessListener { languageCode ->
             when (languageCode) {
                 "es" -> {
-                    // PULSE COLOR: RED for Spanish
                     btnListen.backgroundTintList = ColorStateList.valueOf(Color.RED)
                     performTranslation(text, esEnTranslator, Locale.US)
                 }
                 "en" -> {
-                    // PULSE COLOR: BLUE for English
                     btnListen.backgroundTintList = ColorStateList.valueOf(Color.BLUE)
                     performTranslation(text, enEsTranslator, Locale("es", "ES"))
                 }
@@ -143,14 +142,41 @@ class MainActivity : AppCompatActivity() {
     private fun performTranslation(text: String, activeTranslator: Translator, targetLocale: Locale) {
         activeTranslator.translate(text).addOnSuccessListener { translated ->
             tvTranscript.append("\nIn: $text\nOut: $translated\n")
+            
+            // PREVENT SELF-TALK: Set flag and stop recognizer
+            isAiSpeaking = true
+            speechRecognizer?.stopListening()
+            
             tts.language = targetLocale
-            tts.speak(translated, TextToSpeech.QUEUE_FLUSH, null, "ID")
+            // We pass a unique ID ("UTT_ID") to trigger the progress listener
+            tts.speak(translated, TextToSpeech.QUEUE_FLUSH, null, "UTT_ID")
+        }
+    }
+
+    private fun setupTTS() { 
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        isAiSpeaking = true
+                    }
+                    override fun onDone(utteranceId: String?) {
+                        isAiSpeaking = false
+                        // RESTART LISTENING AFTER AI FINISHES
+                        runOnUiThread { if (isListening) startContinuousSpeech() }
+                    }
+                    override fun onError(utteranceId: String?) {
+                        isAiSpeaking = false
+                        runOnUiThread { if (isListening) startContinuousSpeech() }
+                    }
+                })
+            }
         }
     }
 
     private fun stopContinuousSpeech() {
         isListening = false
-        tvStatus.text = "Status: Stopped"
+        isAiSpeaking = false
         pulseAnimator?.end()
         btnListen.scaleX = 1f
         btnListen.scaleY = 1f
@@ -158,11 +184,15 @@ class MainActivity : AppCompatActivity() {
         speechRecognizer?.destroy()
     }
 
-    private fun setupTTS() { tts = TextToSpeech(this) {} }
-    
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        speechRecognizer?.destroy()
+        tts.shutdown()
     }
 }
