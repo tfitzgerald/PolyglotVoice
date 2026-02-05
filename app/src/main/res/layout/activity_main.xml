@@ -1,40 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:gravity="center_horizontal">
+    android:background="#F5F5F5"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Status: Initializing..."
+        android:textSize="12sp"
+        android:textColor="#666666" />
 
     <TextView
         android:id="@+id/tvTranscript"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:background="#F0F0F0"
-        android:padding="8dp"
+        android:layout_height="match_parent"
+        android:layout_below="@id/tvStatus"
+        android:layout_above="@+id/btnListen"
+        android:layout_marginBottom="20dp"
+        android:background="@android:color/white"
+        android:padding="12dp"
         android:scrollbars="vertical"
-        android:text="Transcript will appear here..." />
+        android:textColor="#333333"
+        android:textSize="18sp" />
 
     <Button
         android:id="@+id/btnClear"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Clear Chat" />
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:text="Clear" />
 
-    <View
+    <ImageButton
         android:id="@+id/btnListen"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:layout_margin="24dp"
-        android:background="@android:drawable/presence_online"
-        android:backgroundTint="@android:color/darker_gray" />
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:background="@android:drawable/screen_background_light_transparent"
+        android:scaleType="fitCenter"
+        android:src="@android:drawable/ic_btn_speak_now" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Tap icon to Start/Stop"
-        android:textSize="12sp" />
-
-</LinearLayout>
+</RelativeLayout>

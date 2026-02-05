@@ -17,6 +17,7 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.*
 import java.util.*
 
@@ -25,61 +26,64 @@ class MainActivity : AppCompatActivity() {
     private var speechRecognizer: SpeechRecognizer? = null
     private lateinit var tts: TextToSpeech
     private lateinit var tvTranscript: TextView
-    private lateinit var btnListen: View
-    private lateinit var btnClear: Button
+    private lateinit var tvStatus: TextView
+    private lateinit var btnListen: ImageButton
     
     private var isListening = false
     private var isSpanishSource = true 
     private var pulseAnimator: ObjectAnimator? = null
+    private var translator: Translator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         tvTranscript = findViewById(R.id.tvTranscript)
+        tvStatus = findViewById(R.id.tvStatus)
         btnListen = findViewById(R.id.btnListen)
-        btnClear = findViewById(R.id.btnClear)
+        val btnClear = findViewById<Button>(R.id.btnClear)
 
-        setupTTS()
         checkPermissions()
+        setupTTS()
+        prepareTranslator()
 
         btnListen.setOnClickListener {
-            if (!isListening) {
-                isListening = true
-                isSpanishSource = !isSpanishSource // Toggles language each session
-                startContinuousSpeech()
-            } else {
-                isListening = false
-                stopContinuousSpeech()
-            }
+            if (isListening) stopContinuousSpeech() else startContinuousSpeech()
         }
 
-        btnClear.setOnClickListener {
-            tvTranscript.text = ""
-        }
+        btnClear.setOnClickListener { tvTranscript.text = "" }
+    }
+
+    private fun prepareTranslator() {
+        tvStatus.text = "Status: Downloading AI Models..."
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.SPANISH)
+            .setTargetLanguage(TranslateLanguage.ENGLISH)
+            .build()
+        translator = Translation.getClient(options)
+
+        val conditions = DownloadConditions.Builder().requireWifi().build()
+        translator?.downloadModelIfNeeded(conditions)
+            ?.addOnSuccessListener { tvStatus.text = "Status: AI Ready" }
+            ?.addOnFailureListener { tvStatus.text = "Status: Error downloading models" }
     }
 
     private fun startContinuousSpeech() {
-        if (!isListening) return
-
-        // UI: Start Pulse Animation
-        val pulseColor = if (isSpanishSource) Color.RED else Color.BLUE
-        btnListen.backgroundTintList = ColorStateList.valueOf(pulseColor)
+        isListening = true
+        tvStatus.text = "Status: Listening..."
         
-        if (pulseAnimator == null) {
-            pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
-                btnListen,
-                PropertyValuesHolder.ofFloat("scaleX", 1.2f),
-                PropertyValuesHolder.ofFloat("scaleY", 1.2f)
-            ).apply {
-                duration = 600
-                repeatCount = ObjectAnimator.INFINITE
-                repeatMode = ObjectAnimator.REVERSE
-            }
+        // Pulse Logic
+        val color = if (isSpanishSource) Color.RED else Color.BLUE
+        btnListen.imageTintList = ColorStateList.valueOf(color)
+        pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(btnListen,
+            PropertyValuesHolder.ofFloat("scaleX", 1.2f),
+            PropertyValuesHolder.ofFloat("scaleY", 1.2f)).apply {
+            duration = 600
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            start()
         }
-        pulseAnimator?.start()
 
-        // Speech Engine Setup
         speechRecognizer?.destroy()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         
@@ -90,17 +94,11 @@ class MainActivity : AppCompatActivity() {
 
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle?) {
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!matches.isNullOrEmpty()) {
-                    processTranslation(matches[0])
-                }
-                if (isListening) startContinuousSpeech() 
+                val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)
+                text?.let { translateAndSpeak(it) }
+                if (isListening) startContinuousSpeech()
             }
-
-            override fun onError(error: Int) {
-                if (isListening) startContinuousSpeech() 
-            }
-
+            override fun onError(error: Int) { if (isListening) startContinuousSpeech() }
             override fun onReadyForSpeech(p0: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(p0: Float) {}
@@ -109,33 +107,24 @@ class MainActivity : AppCompatActivity() {
             override fun onPartialResults(p0: Bundle?) {}
             override fun onEvent(p0: Int, p1: Bundle?) {}
         })
-
         speechRecognizer?.startListening(intent)
+    }
+
+    private fun translateAndSpeak(text: String) {
+        translator?.translate(text)?.addOnSuccessListener { translatedText ->
+            tvTranscript.append("\nMe: $text\nAI: $translatedText\n")
+            tts.speak(translatedText, TextToSpeech.QUEUE_FLUSH, null, "ID")
+        }
     }
 
     private fun stopContinuousSpeech() {
         isListening = false
+        tvStatus.text = "Status: Stopped"
         pulseAnimator?.cancel()
-        btnListen.scaleX = 1.0f
-        btnListen.scaleY = 1.0f
-        btnListen.backgroundTintList = ColorStateList.valueOf(Color.GRAY)
-        speechRecognizer?.stopListening()
+        btnListen.scaleX = 1f
+        btnListen.scaleY = 1f
+        btnListen.imageTintList = null
         speechRecognizer?.destroy()
-    }
-
-    private fun processTranslation(text: String) {
-        val source = if (isSpanishSource) TranslateLanguage.SPANISH else TranslateLanguage.ENGLISH
-        val target = if (isSpanishSource) TranslateLanguage.ENGLISH else TranslateLanguage.SPANISH
-        val locale = if (isSpanishSource) Locale.US else Locale("es", "ES")
-
-        val options = TranslatorOptions.Builder().setSourceLanguage(source).setTargetLanguage(target).build()
-        val translator = Translation.getClient(options)
-
-        translator.translate(text).addOnSuccessListener { result ->
-            tvTranscript.append("\nMe: $text\nAI: $result\n")
-            tts.language = locale
-            tts.speak(result, TextToSpeech.QUEUE_FLUSH, null, "ID")
-        }
     }
 
     private fun setupTTS() { tts = TextToSpeech(this) {} }
@@ -148,6 +137,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        translator?.close()
         speechRecognizer?.destroy()
         tts.shutdown()
     }
