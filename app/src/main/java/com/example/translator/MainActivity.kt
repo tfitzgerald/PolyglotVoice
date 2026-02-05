@@ -13,7 +13,6 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.view.View
-import android.view.animation.Animation
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -23,12 +22,12 @@ import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var speechRecognizer: SpeechRecognizer
+    private var speechRecognizer: SpeechRecognizer? = null
     private lateinit var tts: TextToSpeech
     private lateinit var tvTranscript: TextView
-    private lateinit var btnListen: ImageButton // Changed to ImageButton for better pulse look
+    private lateinit var btnListen: View 
     private var isListening = false
-    private var isSpanishSource = true // Toggle state
+    private var isSpanishSource = true 
     private var pulseAnimator: ObjectAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,32 +35,32 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         tvTranscript = findViewById(R.id.tvTranscript)
-		// Inside onCreate, after tvTranscript = findViewById(...)
-		val btnClear = findViewById<Button>(R.id.btnClear)
-
-		btnClear.setOnClickListener {
-			tvTranscript.text = "" // This wipes the transcript
-			Toast.makeText(this, "Transcript cleared", Toast.LENGTH_SHORT).show()
-		}
-		
         btnListen = findViewById(R.id.btnListen)
+        val btnClear = findViewById<Button>(R.id.btnClear)
 
-        checkPermissions()
         setupTTS()
-        setupSpeechRecognizer()
+        checkPermissions()
 
         btnListen.setOnClickListener {
             if (!isListening) {
-                isSpanishSource = !isSpanishSource // Example: Toggle language on each click
-                startListening()
+                isListening = true
+                startListeningLoop()
             } else {
+                isListening = false
                 stopListening()
             }
         }
+
+        btnClear.setOnClickListener {
+            tvTranscript.text = ""
+        }
     }
 
-    private fun setupPulseAnimation() {
-        // Create a breathing/pulsing effect
+    private fun startListeningLoop() {
+        // Prepare the Pulse Animation
+        val color = if (isSpanishSource) Color.RED else Color.BLUE
+        btnListen.backgroundTintList = ColorStateList.valueOf(color)
+        
         pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
             btnListen,
             PropertyValuesHolder.ofFloat("scaleX", 1.2f),
@@ -70,53 +69,27 @@ class MainActivity : AppCompatActivity() {
             duration = 600
             repeatCount = ObjectAnimator.INFINITE
             repeatMode = ObjectAnimator.REVERSE
+            start()
         }
-
-        // Change color based on language
-        val pulseColor = if (isSpanishSource) Color.RED else Color.BLUE
-        btnListen.backgroundTintList = ColorStateList.valueOf(pulseColor)
-    }
-
-    private fun startListening() {
-        isListening = true
-        setupPulseAnimation()
-        pulseAnimator?.start()
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            // Force the language based on our toggle
-            val lang = if (isSpanishSource) "es-ES" else "en-US"
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isSpanishSource) "es-ES" else "en-US")
         }
-        speechRecognizer.startListening(intent)
-    }
 
-    private fun stopListening() {
-        isListening = false
-        pulseAnimator?.cancel()
-        btnListen.scaleX = 1f
-        btnListen.scaleY = 1f
-        btnListen.backgroundTintList = ColorStateList.valueOf(Color.GRAY)
-        speechRecognizer.stopListening()
-    }
-
-    private fun setupSpeechRecognizer() {
+        speechRecognizer?.destroy() // Clean up old recognizer
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-        speechRecognizer.setRecognitionListener(object : RecognitionListener {
+        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle?) {
                 val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)
                 text?.let { processTranslation(it) }
-                
-                // CONTINUOUS LISTENING: Restart after processing
-                if (isListening) startListening() 
+                if (isListening) startListeningLoop() // Loop back
             }
 
             override fun onError(error: Int) {
-                // Restart if it times out to keep it "Continuous"
-                if (isListening) startListening()
+                if (isListening) startListeningLoop() // Restart on silence/timeout
             }
 
-            // Unused required methods
             override fun onReadyForSpeech(p0: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(p0: Float) {}
@@ -125,6 +98,17 @@ class MainActivity : AppCompatActivity() {
             override fun onPartialResults(p0: Bundle?) {}
             override fun onEvent(p0: Int, p1: Bundle?) {}
         })
+        
+        speechRecognizer?.startListening(intent)
+    }
+
+    private fun stopListening() {
+        pulseAnimator?.cancel()
+        btnListen.scaleX = 1f
+        btnListen.scaleY = 1f
+        btnListen.backgroundTintList = ColorStateList.valueOf(Color.LTGRAY)
+        speechRecognizer?.stopListening()
+        speechRecognizer?.destroy()
     }
 
     private fun processTranslation(text: String) {
@@ -132,14 +116,12 @@ class MainActivity : AppCompatActivity() {
         val target = if (isSpanishSource) TranslateLanguage.ENGLISH else TranslateLanguage.SPANISH
         val locale = if (isSpanishSource) Locale.US else Locale("es", "ES")
 
-        val options = TranslatorOptions.Builder()
-            .setSourceLanguage(source)
-            .setTargetLanguage(target)
-            .build()
-        
+        val options = TranslatorOptions.Builder().setSourceLanguage(source).setTargetLanguage(target).build()
         val translator = Translation.getClient(options)
+
         translator.translate(text).addOnSuccessListener { result ->
-            tvTranscript.append("\nIn: $text\nOut: $result\n")
+            val timestamp = java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            tvTranscript.append("\n[$timestamp]\nIn: $text\nOut: $result\n")
             tts.language = locale
             tts.speak(result, TextToSpeech.QUEUE_FLUSH, null, "ID")
         }
@@ -151,5 +133,12 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        speechRecognizer?.destroy()
+        tts.stop()
+        tts.shutdown()
     }
 }
