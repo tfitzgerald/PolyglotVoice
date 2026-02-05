@@ -1,4 +1,4 @@
-package com.example.translator
+package com.example.polyglotvoice
 
 import android.Manifest
 import android.animation.AnimatorSet
@@ -18,7 +18,10 @@ import androidx.core.content.ContextCompat
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.common.model.RemoteModelManager
 import com.google.mlkit.nl.languageid.LanguageIdentification
-import com.google.mlkit.nl.translate.*
+// Corrected this import line below:
+import com.google.mlkit.nl.translate.* // Added this crucial line below:
+import com.example.polyglotvoice.R 
+
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
