@@ -1,0 +1,8 @@
+xml version=1.0 encoding=utf-8
+shape xmlnsandroid=httpschemas.android.comapkresandroid
+    androidshape=oval
+    solid androidcolor=#FFFFFF 
+    size
+        androidwidth=100dp
+        androidheight=100dp 
+shape
