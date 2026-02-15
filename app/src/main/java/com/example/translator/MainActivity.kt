@@ -71,21 +71,51 @@ class MainActivity : AppCompatActivity() {
         setupTranslators()
     }
 
-    private fun initSpeechRecognizer() {
+	private fun initSpeechRecognizer() {
         if (speechRecognizer != null) speechRecognizer?.destroy()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this).apply {
             setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(p0: Bundle?) { 
+                    tvStatus.text = "LISTENING..." 
+                    btnListen.setColorFilter(Color.RED) // Red indicates "Mic is Hot"
+                }
+
+                override fun onRmsChanged(rmsdB: Float) {
+                    // This triggers WHILE the user is speaking
+                    // We scale the pulse indicator based on volume (rmsdB)
+                    val scale = 1f + (rmsdB / 10f).coerceAtLeast(0f)
+                    pulseIndicator.scaleX = scale
+                    pulseIndicator.scaleY = scale
+                    pulseIndicator.alpha = 0.8f
+                    
+                    // Optional: Make the Mic icon "glow" white while sound is detected
+                    if (rmsdB > 2) {
+                        pulseIndicator.backgroundTintList = ColorStateList.valueOf(Color.WHITE)
+                    }
+                }
+
                 override fun onResults(r: Bundle?) {
                     val text = r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0) ?: ""
+                    // Reset pulse after speaking
+                    pulseIndicator.alpha = 0f
                     if (text.isNotEmpty()) detectAndTranslate(text)
                     else if (isListening) startListening()
                 }
-                override fun onError(p0: Int) { if (isListening) startListening() }
-                override fun onReadyForSpeech(p0: Bundle?) { tvStatus.text = "LISTENING..." }
-                override fun onBeginningOfSpeech() { triggerPulse(Color.WHITE) }
-                override fun onRmsChanged(p0: Float) {}
+
+                override fun onBeginningOfSpeech() {
+                    tvStatus.text = "RECORDING..."
+                }
+
+                override fun onError(p0: Int) { 
+                    pulseIndicator.alpha = 0f
+                    if (isListening) startListening() 
+                }
+                
                 override fun onBufferReceived(p0: ByteArray?) {}
-                override fun onEndOfSpeech() {}
+                override fun onEndOfSpeech() {
+                    tvStatus.text = "PROCESSING..."
+                    pulseIndicator.alpha = 0f
+                }
                 override fun onPartialResults(p0: Bundle?) {}
                 override fun onEvent(p0: Int, p1: Bundle?) {}
             })
