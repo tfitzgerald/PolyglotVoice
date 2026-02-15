@@ -33,15 +33,14 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginVertical="8dp">
-        <TextView
-			android:id="@+id/tvTranscript"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:padding="12dp"
-			android:textSize="18sp"
-			android:bufferType="spannable"
-			android:forceDarkAllowed="false"
-			android:textColorHint="#444444" />
+	<TextView
+		android:id="@+id/tvTranscript"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:padding="12dp"
+		android:textSize="18sp"
+		android:background="#121212"
+		android:textColor="#FFFFFF" />
     </ScrollView>
 
     <FrameLayout
