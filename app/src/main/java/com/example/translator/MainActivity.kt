@@ -176,15 +176,15 @@ class MainActivity : AppCompatActivity() {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, text)
         }
-        startActivity(Intent.createChooser(intent, "Share/DM"))
+        startActivity(Intent.createChooser(intent, "Share Logs"))
     }
 
     private fun saveTranscript() {
         val content = tvTranscript.text.toString()
         if (content.isEmpty()) return
-        val name = "polyglot_${System.currentTimeMillis()}.txt"
+        val name = "log_${System.currentTimeMillis()}.txt"
         openFileOutput(name, Context.MODE_PRIVATE).use { it.write(content.toByteArray()) }
-        Toast.makeText(this, "Saved $name", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Logged as $name", Toast.LENGTH_SHORT).show()
     }
 
     private fun triggerPulse(color: Int) {
@@ -214,7 +214,7 @@ class MainActivity : AppCompatActivity() {
         val conditions = DownloadConditions.Builder().build()
         enEsTranslator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build())
         esEnTranslator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build())
-        tvStatus.text = "SYNCING..."
+        tvStatus.text = "PREPARING AI..."
         enEsTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
             esEnTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
                 runOnUiThread { tvStatus.text = "AI READY" }
