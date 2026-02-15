@@ -40,10 +40,8 @@ class MainActivity : AppCompatActivity() {
     private var isListening = false
     private var isAiSpeaking = false
 
-    // HIGH-CONTRAST COLORS (System-Proof)
-    private val BG_CYAN = Color.parseColor("#008B8B")   // Darker Cyan for readability
-    private val BG_YELLOW = Color.parseColor("#8B8000") // Darker Yellow for readability
-    private val TEXT_WHITE = Color.WHITE
+    private val BG_CYAN = Color.parseColor("#008B8B")
+    private val BG_YELLOW = Color.parseColor("#8B8000")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,9 +52,9 @@ class MainActivity : AppCompatActivity() {
         pulse1 = findViewById(R.id.pulse1)
         pulse2 = findViewById(R.id.pulse2)
 
-        findViewById<Button>(R.id.btnClear).setOnClickListener { tvTranscript.setText("", TextView.BufferType.SPANNABLE) }
-        findViewById<Button>(R.id.btnSave).setOnClickListener { saveAndShare() }
-        findViewById<Button>(R.id.btnReset).setOnClickListener { resetModels() }
+        findViewById<ImageButton>(R.id.btnSave).setOnClickListener { saveAndShare() }
+        findViewById<ImageButton>(R.id.btnReset).setOnClickListener { resetModels() }
+        findViewById<ImageButton>(R.id.btnClear).setOnClickListener { tvTranscript.setText("", TextView.BufferType.SPANNABLE) }
         findViewById<ToggleButton>(R.id.toggleRegional).setOnCheckedChangeListener { _, isChecked -> isRegionalFlavorEnabled = isChecked }
         findViewById<ImageButton>(R.id.btnListen).setOnClickListener { if (isListening) stopContinuousMode() else startContinuousMode() }
 
@@ -68,139 +66,66 @@ class MainActivity : AppCompatActivity() {
     private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
         isAiSpeaking = true
         speechRecognizer?.stopListening()
-        
         trans.translate(text).addOnSuccessListener { res ->
             val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyColimaFlavor(res) else res
-            
-            // UI Color Assignment: English = Cyan, Spanish = Yellow
             val inBg = if (loc.language == "es") BG_YELLOW else BG_CYAN
             val outBg = if (loc.language == "es") BG_CYAN else BG_YELLOW
 
             val builder = SpannableStringBuilder()
-
-            // Styled "In" line with background color bubble
             val sIn = SpannableString(" In: $text \n")
             sIn.setSpan(BackgroundColorSpan(inBg), 0, sIn.length - 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            sIn.setSpan(ForegroundColorSpan(TEXT_WHITE), 0, sIn.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            sIn.setSpan(StyleSpan(Typeface.BOLD), 1, 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-
-            // Styled "Out" line with background color bubble
+            sIn.setSpan(ForegroundColorSpan(Color.WHITE), 0, sIn.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            
             val sOut = SpannableString(" Out: $out \n")
             sOut.setSpan(BackgroundColorSpan(outBg), 0, sOut.length - 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            sOut.setSpan(ForegroundColorSpan(TEXT_WHITE), 0, sOut.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            sOut.setSpan(StyleSpan(Typeface.BOLD), 1, 4, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            sOut.setSpan(ForegroundColorSpan(Color.WHITE), 0, sOut.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
             builder.append(sIn).append("\n").append(sOut).append("\n")
-
             runOnUiThread {
                 tvTranscript.append(builder)
                 scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
             }
-
             tts.language = loc
             tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
         }
     }
 
-	private fun applyColimaFlavor(t: String): String {
-		var r = t
-		val dictionary = mapOf(
-			"niño" to "chigüilín", 
-			"amigo" to "compa", 
-			"trabajo" to "chamba", 
-			"dinero" to "feria",
-			"autobús" to "la ruta",
-			"fofo" to "bofo",      // Added
-			"arrugado" to "pachichi" // Added
-		)
-		for ((k, v) in dictionary) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
-		return r
-	}
-
-    private fun saveAndShare() {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
-        val content = tvTranscript.text.toString()
-        try {
-            val file = File(getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS), "Polyglot_$timestamp.txt")
-            FileOutputStream(file).use { it.write(content.toByteArray()) }
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, content)
-            }
-            startActivity(Intent.createChooser(intent, "Share via WhatsApp/DM"))
-        } catch (e: Exception) { Toast.makeText(this, "Save Failed", Toast.LENGTH_SHORT).show() }
+    private fun applyColimaFlavor(t: String): String {
+        var r = t
+        val dict = mapOf("niño" to "chigüilín", "amigo" to "compa", "trabajo" to "chamba", "dinero" to "feria", "autobús" to "la ruta")
+        for ((k, v) in dict) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
+        return r
     }
 
-    private fun setupTranslators() {
-        val enEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
-        val esEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
-        enEsTranslator = Translation.getClient(enEs)
-        esEnTranslator = Translation.getClient(esEn)
-        val cond = DownloadConditions.Builder().requireWifi().build()
-        enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
-            esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { 
-                findViewById<TextView>(R.id.tvStatus).text = "AI READY" 
-            }
+    private fun startContinuousMode() {
+        if (isAiSpeaking) return
+        isListening = true
+        startPulse(Color.DKGRAY)
+        speechRecognizer?.destroy()
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
         }
+        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(p: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {
+                if (rmsdB > 2f && isListening) { runOnUiThread { pulse1.visibility = View.VISIBLE; pulse1.alpha = 0.4f } }
+            }
+            override fun onBufferReceived(b: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
+            override fun onResults(r: Bundle?) { r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detectLanguage(it) } }
+            override fun onPartialResults(p: Bundle?) {}
+            override fun onEvent(i: Int, b: Bundle?) {}
+        })
+        speechRecognizer?.startListening(intent)
     }
-
-    private fun setupTTS() {
-        tts = TextToSpeech(this) {
-            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                override fun onDone(id: String?) { isAiSpeaking = false; if (isListening) runOnUiThread { startContinuousMode() } }
-                override fun onStart(id: String?) { isAiSpeaking = true }
-                override fun onError(id: String?) { isAiSpeaking = false }
-            })
-        }
-    }
-
-	private fun startContinuousMode() {
-		if (isAiSpeaking) return
-		isListening = true
-		startPulse(Color.DKGRAY) 
-		speechRecognizer?.destroy()
-		speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-		val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-			putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-		}
-		
-		speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-			// THE FIX: This specific function now correctly handles the real-time pulse
-			override fun onRmsChanged(rmsdB: Float) {
-				if (rmsdB > 2f && isListening) { 
-					runOnUiThread {
-						pulse1.visibility = View.VISIBLE
-						pulse1.alpha = 0.4f
-					}
-				}
-			}
-
-			override fun onResults(r: Bundle?) { 
-				r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { 
-					detectLanguage(it) 
-				} 
-			}
-
-			override fun onError(e: Int) { 
-				if (isListening && !isAiSpeaking) startContinuousMode() 
-			}
-
-			// REQUIRED MEMBERS: These must exist even if empty to satisfy the compiler
-			override fun onReadyForSpeech(params: Bundle?) {}
-			override fun onBeginningOfSpeech() {}
-			override fun onBufferReceived(buffer: ByteArray?) {}
-			override fun onEndOfSpeech() {}
-			override fun onPartialResults(partialResults: Bundle?) {}
-			override fun onEvent(eventType: Int, params: Bundle?) {}
-		})
-		speechRecognizer?.startListening(intent)
-	}
 
     private fun detectLanguage(text: String) {
         LanguageIdentification.getClient().identifyLanguage(text).addOnSuccessListener { lang ->
             val pulseColor = if (lang == "es") BG_YELLOW else BG_CYAN
-            runOnUiThread { startPulse(pulseColor) } // Identification Pulse
-
+            runOnUiThread { startPulse(pulseColor) }
             if (lang == "es") translateAndSpeak(text, esEnTranslator, Locale.US)
             else translateAndSpeak(text, enEsTranslator, Locale("es", "MX"))
         }
@@ -217,8 +142,8 @@ class MainActivity : AppCompatActivity() {
                 AnimatorSet().apply {
                     duration = 1400
                     playTogether(sX, sY, alpha)
-                    addListener(object : AnimatorListenerAdapter() { 
-                        override fun onAnimationEnd(a: Animator) { if (isListening) start() } 
+                    addListener(object : AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(a: Animator) { if (isListening) start() }
                     })
                     start()
                 }
@@ -228,5 +153,28 @@ class MainActivity : AppCompatActivity() {
 
     private fun stopContinuousMode() { isListening = false; pulse1.visibility = View.INVISIBLE; pulse2.visibility = View.INVISIBLE; speechRecognizer?.destroy() }
     private fun checkPermissions() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) }
+    private fun setupTTS() { tts = TextToSpeech(this) { tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() { override fun onDone(id: String?) { isAiSpeaking = false; if (isListening) runOnUiThread { startContinuousMode() } }; override fun onStart(id: String?) { isAiSpeaking = true }; override fun onError(id: String?) { isAiSpeaking = false } }) } }
+    private fun setupTranslators() {
+        val enEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
+        val esEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
+        enEsTranslator = Translation.getClient(enEs); esEnTranslator = Translation.getClient(esEn)
+        val cond = DownloadConditions.Builder().requireWifi().build()
+        enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { findViewById<TextView>(R.id.tvStatus).text = "AI READY" } }
+    }
+
+    private fun saveAndShare() {
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
+        val content = tvTranscript.text.toString()
+        try {
+            val file = File(getExternalFilesDir(null), "Polyglot_$timestamp.txt")
+            FileOutputStream(file).use { it.write(content.toByteArray()) }
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, content)
+            }
+            startActivity(Intent.createChooser(intent, "Share via..."))
+        } catch (e: Exception) { Toast.makeText(this, "Save Error", Toast.LENGTH_SHORT).show() }
+    }
+
     private fun resetModels() { val manager = RemoteModelManager.getInstance(); manager.deleteDownloadedModel(TranslateRemoteModel.Builder(TranslateLanguage.ENGLISH).build()); manager.deleteDownloadedModel(TranslateRemoteModel.Builder(TranslateLanguage.SPANISH).build()).addOnSuccessListener { setupTranslators() } }
 }

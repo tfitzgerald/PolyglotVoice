@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -8,40 +9,42 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="56dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingEnd="8dp">
 
         <ImageButton
             android:id="@+id/btnSave"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_save"
             android:contentDescription="Save"
-            android:tint="#00FFFF" />
+            app:tint="#00FFFF" />
 
         <ToggleButton
             android:id="@+id/toggleRegional"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="38dp"
             android:layout_marginStart="8dp"
             android:textOn="🌶️ ON"
             android:textOff="🌶️ OFF"
+            android:backgroundTint="#2C2C2C"
+            android:textColor="#FFFFFF"
             android:textSize="10sp"
             android:minWidth="0dp"
             android:minHeight="0dp" />
 
         <ImageButton
             android:id="@+id/btnReset"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:layout_marginStart="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/stat_notify_sync"
+            android:src="@android:drawable/ic_popup_sync"
             android:contentDescription="Reset"
-            android:tint="#FFFFFF" />
+            app:tint="#FFFFFF" />
 
         <View
             android:layout_width="0dp"
@@ -50,12 +53,12 @@
 
         <ImageButton
             android:id="@+id/btnClear"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_delete"
             android:contentDescription="Clear"
-            android:tint="#FF5555" />
+            app:tint="#FF5555" />
     </LinearLayout>
 
     <TextView
@@ -72,7 +75,9 @@
         android:id="@+id/scrollTranscript"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp">
         
         <TextView
             android:id="@+id/tvTranscript"
@@ -89,7 +94,7 @@
         android:layout_width="150dp"
         android:layout_height="150dp"
         android:layout_gravity="center"
-        android:layout_marginBottom="16dp">
+        android:layout_marginBottom="24dp">
         
         <View android:id="@+id/pulse1" 
             android:layout_width="match_parent" 
@@ -110,6 +115,8 @@
             android:layout_gravity="center"
             android:background="@drawable/circle_shape"
             android:backgroundTint="#333333"
-            android:src="@android:drawable/ic_btn_speak_now" />
+            android:src="@android:drawable/ic_btn_speak_now"
+            android:contentDescription="Listen"
+            app:tint="#FFFFFF" />
     </FrameLayout>
 </LinearLayout>
