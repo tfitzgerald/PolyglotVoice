@@ -6,14 +6,12 @@ import android.content.*
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
 import android.speech.*
 import android.speech.tts.*
 import android.text.*
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
-import android.text.style.StyleSpan
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -32,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scrollTranscript: ScrollView
     private lateinit var pulse1: View
     private lateinit var pulse2: View
+    private lateinit var tvStatus: TextView
     private var isRegionalFlavorEnabled = false
     private var speechRecognizer: SpeechRecognizer? = null
     private lateinit var tts: TextToSpeech
@@ -40,8 +39,8 @@ class MainActivity : AppCompatActivity() {
     private var isListening = false
     private var isAiSpeaking = false
 
-    private val BG_CYAN = Color.parseColor("#008B8B")
-    private val BG_YELLOW = Color.parseColor("#8B8000")
+    private val BG_CYAN = Color.parseColor("#006064")
+    private val BG_YELLOW = Color.parseColor("#FBC02D")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +50,7 @@ class MainActivity : AppCompatActivity() {
         scrollTranscript = findViewById(R.id.scrollTranscript)
         pulse1 = findViewById(R.id.pulse1)
         pulse2 = findViewById(R.id.pulse2)
+        tvStatus = findViewById(R.id.tvStatus)
 
         findViewById<ImageButton>(R.id.btnSave).setOnClickListener { saveAndShare() }
         findViewById<ImageButton>(R.id.btnReset).setOnClickListener { resetModels() }
@@ -66,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
         isAiSpeaking = true
         speechRecognizer?.stopListening()
+        
         trans.translate(text).addOnSuccessListener { res ->
             val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyColimaFlavor(res) else res
             val inBg = if (loc.language == "es") BG_YELLOW else BG_CYAN
@@ -100,31 +101,30 @@ class MainActivity : AppCompatActivity() {
     private fun startContinuousMode() {
         if (isAiSpeaking) return
         isListening = true
-        startPulse(Color.DKGRAY)
+        startPulse(Color.GRAY)
         speechRecognizer?.destroy()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
+
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(p: Bundle?) {}
+            override fun onReadyForSpeech(p: Bundle?) { runOnUiThread { tvStatus.text = "Listening..." } }
             override fun onBeginningOfSpeech() {}
-			override fun onRmsChanged(rmsdB: Float) {
-				// Increase this value further (e.g., to 10f) if you are in a very loud area
-				if (rmsdB > 7.5f && isListening) { 
-					runOnUiThread {
-						pulse1.visibility = View.VISIBLE
-						pulse1.alpha = 0.4f
-					}
-				} else {
-					// Hide the pulse if the sound is below the threshold
-					runOnUiThread { pulse1.alpha = 0f }
-				}
-			}
+            override fun onRmsChanged(rmsdB: Float) {
+                // Sensitivity Threshold: Balanced at 5.0f
+                if (rmsdB > 5.0f && isListening) { 
+                    runOnUiThread { pulse1.visibility = View.VISIBLE; pulse1.alpha = 0.4f } 
+                }
+            }
             override fun onBufferReceived(b: ByteArray?) {}
             override fun onEndOfSpeech() {}
             override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
-            override fun onResults(r: Bundle?) { r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detectLanguage(it) } }
+            override fun onResults(r: Bundle?) { 
+                r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detectLanguage(it) } 
+            }
             override fun onPartialResults(p: Bundle?) {}
             override fun onEvent(i: Int, b: Bundle?) {}
         })
@@ -135,8 +135,13 @@ class MainActivity : AppCompatActivity() {
         LanguageIdentification.getClient().identifyLanguage(text).addOnSuccessListener { lang ->
             val pulseColor = if (lang == "es") BG_YELLOW else BG_CYAN
             runOnUiThread { startPulse(pulseColor) }
-            if (lang == "es") translateAndSpeak(text, esEnTranslator, Locale.US)
-            else translateAndSpeak(text, enEsTranslator, Locale("es", "MX"))
+            
+            // Fixed Detection Logic
+            if (lang == "es") {
+                translateAndSpeak(text, esEnTranslator, Locale.US)
+            } else {
+                translateAndSpeak(text, enEsTranslator, Locale("es", "MX"))
+            }
         }
     }
 
@@ -147,9 +152,9 @@ class MainActivity : AppCompatActivity() {
                 v.backgroundTintList = ColorStateList.valueOf(color)
                 val sX = ObjectAnimator.ofFloat(v, "scaleX", 1f, 4f)
                 val sY = ObjectAnimator.ofFloat(v, "scaleY", 1f, 4f)
-                val alpha = ObjectAnimator.ofFloat(v, "alpha", 0.6f, 0f)
+                val alpha = ObjectAnimator.ofFloat(v, "alpha", 0.5f, 0f)
                 AnimatorSet().apply {
-                    duration = 1400
+                    duration = 1500
                     playTogether(sX, sY, alpha)
                     addListener(object : AnimatorListenerAdapter() {
                         override fun onAnimationEnd(a: Animator) { if (isListening) start() }
@@ -160,25 +165,46 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // private fun stopContinuousMode() { isListening = false; pulse1.visibility = View.INVISIBLE; pulse2.visibility = View.INVISIBLE; speechRecognizer?.destroy() }
-	private fun stopContinuousMode() { 
-		isListening = false
-		runOnUiThread {
-			pulse1.animate().alpha(0f).setDuration(200).start()
-			pulse2.animate().alpha(0f).setDuration(200).start()
-			pulse1.visibility = View.GONE
-			pulse2.visibility = View.GONE
-		}
-		speechRecognizer?.destroy() 
-	}
-    private fun checkPermissions() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) }
-    private fun setupTTS() { tts = TextToSpeech(this) { tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() { override fun onDone(id: String?) { isAiSpeaking = false; if (isListening) runOnUiThread { startContinuousMode() } }; override fun onStart(id: String?) { isAiSpeaking = true }; override fun onError(id: String?) { isAiSpeaking = false } }) } }
+    private fun stopContinuousMode() { 
+        isListening = false
+        runOnUiThread { 
+            tvStatus.text = "AI READY"
+            pulse1.visibility = View.INVISIBLE 
+            pulse2.visibility = View.INVISIBLE 
+        }
+        speechRecognizer?.destroy() 
+    }
+
+    private fun checkPermissions() { 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+        }
+    }
+
+    private fun setupTTS() { 
+        tts = TextToSpeech(this) { status ->
+            if (status != TextToSpeech.ERROR) {
+                tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() { 
+                    override fun onDone(id: String?) { isAiSpeaking = false; if (isListening) runOnUiThread { startContinuousMode() } }
+                    override fun onStart(id: String?) { isAiSpeaking = true }
+                    override fun onError(id: String?) { isAiSpeaking = false } 
+                })
+            }
+        } 
+    }
+
     private fun setupTranslators() {
         val enEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
         val esEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
-        enEsTranslator = Translation.getClient(enEs); esEnTranslator = Translation.getClient(esEn)
+        enEsTranslator = Translation.getClient(enEs)
+        esEnTranslator = Translation.getClient(esEn)
+        
         val cond = DownloadConditions.Builder().requireWifi().build()
-        enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { findViewById<TextView>(R.id.tvStatus).text = "AI READY" } }
+        enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { 
+            esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { 
+                tvStatus.text = "AI READY" 
+            } 
+        }
     }
 
     private fun saveAndShare() {
@@ -195,5 +221,18 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) { Toast.makeText(this, "Save Error", Toast.LENGTH_SHORT).show() }
     }
 
-    private fun resetModels() { val manager = RemoteModelManager.getInstance(); manager.deleteDownloadedModel(TranslateRemoteModel.Builder(TranslateLanguage.ENGLISH).build()); manager.deleteDownloadedModel(TranslateRemoteModel.Builder(TranslateLanguage.SPANISH).build()).addOnSuccessListener { setupTranslators() } }
+    private fun resetModels() { 
+        val manager = RemoteModelManager.getInstance()
+        tvStatus.text = "Resetting Models..."
+        manager.deleteDownloadedModel(TranslateRemoteModel.Builder(TranslateLanguage.ENGLISH).build())
+        manager.deleteDownloadedModel(TranslateRemoteModel.Builder(TranslateLanguage.SPANISH).build()).addOnSuccessListener { 
+            setupTranslators() 
+        } 
+    }
+
+    override fun onDestroy() {
+        if (::tts.isInitialized) { tts.stop(); tts.shutdown() }
+        speechRecognizer?.destroy()
+        super.onDestroy()
+    }
 }
