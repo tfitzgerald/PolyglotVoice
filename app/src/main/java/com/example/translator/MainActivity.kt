@@ -8,12 +8,12 @@ import android.graphics.Color
 import android.os.Bundle
 import android.speech.*
 import android.speech.tts.*
-import android.text.*
-import android.text.style.ForegroundColorSpan
-import android.view.*
+import android.text.Html
+import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.appbar.MaterialToolbar
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.google.mlkit.common.model.*
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.translate.*
@@ -25,44 +25,37 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scrollTranscript: ScrollView
     private lateinit var pulse1: View
     private lateinit var pulse2: View
-    private lateinit var toolbar: MaterialToolbar
-    
+    private var isRegionalFlavorEnabled = false
+    private var fullHtmlTranscript = ""
+
     private var speechRecognizer: SpeechRecognizer? = null
     private lateinit var tts: TextToSpeech
     private lateinit var enEsTranslator: Translator
     private lateinit var esEnTranslator: Translator
     private var isListening = false
     private var isAiSpeaking = false
-    private var isRegionalFlavorEnabled = false
-    private val conversationHistory = StringBuilder()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        toolbar = findViewById(R.id.toolbar)
-        toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.action_regional_flavor -> {
-                    isRegionalFlavorEnabled = !isRegionalFlavorEnabled
-                    item.isChecked = isRegionalFlavorEnabled
-                    updateTranscriptBorder()
-                    true
-                }
-                R.id.action_save -> { saveConversation(); true }
-                R.id.action_share -> { shareTranscript(); true }
-                R.id.action_clear -> { clearTranscript(); true }
-                R.id.action_reset_models -> { resetModels(); true }
-                else -> false
-            }
-        }
 
         tvTranscript = findViewById(R.id.tvTranscript)
         scrollTranscript = findViewById(R.id.scrollTranscript)
         pulse1 = findViewById(R.id.pulse1)
         pulse2 = findViewById(R.id.pulse2)
 
-        findViewById<Button>(R.id.btnClear).setOnClickListener { clearTranscript() }
+        // PHYSICAL BUTTON LISTENERS
+        findViewById<Button>(R.id.btnClear).setOnClickListener { 
+            fullHtmlTranscript = ""
+            tvTranscript.text = "" 
+        }
+        findViewById<Button>(R.id.btnSave).setOnClickListener { saveConversation() }
+        findViewById<Button>(R.id.btnReset).setOnClickListener { resetModels() }
+        findViewById<ToggleButton>(R.id.toggleRegional).setOnCheckedChangeListener { _, isChecked ->
+            isRegionalFlavorEnabled = isChecked
+            val border = if (isChecked) Color.parseColor("#FFD700") else Color.parseColor("#444444")
+            scrollTranscript.backgroundTintList = ColorStateList.valueOf(border)
+        }
 
         checkPermissions()
         setupTTS()
@@ -73,36 +66,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun clearTranscript() {
-        conversationHistory.clear()
-        tvTranscript.setText("", TextView.BufferType.SPANNABLE)
-    }
-
-    private fun updateTranscriptBorder() {
-        val color = if (isRegionalFlavorEnabled) Color.parseColor("#FFD700") else Color.parseColor("#444444")
-        scrollTranscript.backgroundTintList = ColorStateList.valueOf(color)
-    }
-
     private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
         isAiSpeaking = true
         speechRecognizer?.stopListening()
         trans.translate(text).addOnSuccessListener { res ->
             val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyManzanilloFlavor(res) else res
             
-            // FONT COLORS
-            val inColor = if (loc.language == "es") Color.CYAN else Color.YELLOW
-            val outColor = if (loc.language == "es") Color.YELLOW else Color.CYAN
+            // BRUTE FORCE COLORING VIA HTML
+            val inColor = if (loc.language == "es") "#FFFF00" else "#00FFFF" // Spanish Yellow, English Cyan
+            val outColor = if (loc.language == "es") "#00FFFF" else "#FFFF00" 
+
+            val entry = "<font color='$inColor'>In: $text</font><br>" +
+                        "<font color='$outColor'>Out: $out</font><br><br>"
             
-            val builder = SpannableStringBuilder()
-            
-            val inS = SpannableString("In: $text\n")
-            inS.setSpan(ForegroundColorSpan(inColor), 0, inS.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            
-            val outS = SpannableString("Out: $out\n---\n")
-            outS.setSpan(ForegroundColorSpan(outColor), 0, outS.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            
-            tvTranscript.append(builder.append(inS).append(outS))
-            conversationHistory.append("In: $text\nOut: $out\n---\n")
+            fullHtmlTranscript += entry
+            tvTranscript.text = Html.fromHtml(fullHtmlTranscript, Html.FROM_HTML_MODE_LEGACY)
             
             scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
             tts.language = loc
@@ -113,7 +91,7 @@ class MainActivity : AppCompatActivity() {
     private fun applyManzanilloFlavor(t: String): String {
         var res = t
         val dict = mapOf("niño" to "chigüilín", "amigo" to "compa", "autobús" to "camión", "trabajo" to "chamba", "dinero" to "feria")
-        for ((s, l) in dict) res = res.replace("\\b(?i)$s\\b".toRegex(), l)
+        for ((s, l) in dict) res = res.replace("(?i)\\b$s\\b".toRegex(), l)
         return res
     }
 
@@ -124,7 +102,9 @@ class MainActivity : AppCompatActivity() {
         esEnTranslator = Translation.getClient(optEsEn)
         val cond = DownloadConditions.Builder().requireWifi().build()
         enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
-            esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { findViewById<TextView>(R.id.tvStatus).text = "AI Ready" }
+            esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { 
+                findViewById<TextView>(R.id.tvStatus).text = "AI Ready" 
+            }
         }
     }
 
@@ -172,6 +152,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun saveConversation() {
+        val name = "Log_${System.currentTimeMillis()}.txt"
+        val cleanText = Html.fromHtml(fullHtmlTranscript, Html.FROM_HTML_MODE_LEGACY).toString()
+        openFileOutput(name, Context.MODE_PRIVATE).use { it.write(cleanText.toByteArray()) }
+        Toast.makeText(this, "Saved: $name", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun resetModels() {
+        val manager = RemoteModelManager.getInstance()
+        val en = TranslateRemoteModel.Builder(TranslateLanguage.ENGLISH).build()
+        val es = TranslateRemoteModel.Builder(TranslateLanguage.SPANISH).build()
+        manager.deleteDownloadedModel(en); manager.deleteDownloadedModel(es).addOnSuccessListener { setupTranslators() }
+    }
+
     private fun startPulseAnimation(color: Int) {
         val pulses = listOf(pulse1, pulse2)
         pulses.forEachIndexed { i, v ->
@@ -194,26 +188,6 @@ class MainActivity : AppCompatActivity() {
         pulse2.backgroundTintList = ColorStateList.valueOf(c)
     }
 
-    private fun saveConversation() {
-        val mode = if (isRegionalFlavorEnabled) "Manzanillo" else "Standard"
-        val header = "Log: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())}\nMode: $mode\n---\n"
-        val name = "Chat_${System.currentTimeMillis()}.txt"
-        openFileOutput(name, Context.MODE_PRIVATE).use { it.write((header + conversationHistory.toString()).toByteArray()) }
-        Toast.makeText(this, "Saved to App Internal Storage", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun shareTranscript() {
-        val intent = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, conversationHistory.toString()) }
-        startActivity(Intent.createChooser(intent, "Share via"))
-    }
-
-    private fun resetModels() {
-        val manager = RemoteModelManager.getInstance()
-        val en = TranslateRemoteModel.Builder(TranslateLanguage.ENGLISH).build()
-        val es = TranslateRemoteModel.Builder(TranslateLanguage.SPANISH).build()
-        manager.deleteDownloadedModel(en); manager.deleteDownloadedModel(es).addOnSuccessListener { setupTranslators() }
-    }
-
     private fun stopContinuousMode() { isListening = false; pulse1.visibility = View.INVISIBLE; pulse2.visibility = View.INVISIBLE; speechRecognizer?.destroy() }
-    private fun checkPermissions() { if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.RECORD_AUDIO), 1) }
+    private fun checkPermissions() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) }
 }

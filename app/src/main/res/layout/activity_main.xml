@@ -1,75 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#121212">
+    android:background="#121212"
+    android:padding="8dp">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <HorizontalScrollView
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="#1F1F1F"
-        app:title="PolyglotVoice"
-        app:titleTextColor="#FFFFFF"
-        app:menu="@menu/main_menu" />
-
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="12dp">
-
-        <Button
-            android:id="@+id/btnClear"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:text="Clear"
-            android:backgroundTint="#FF5555" />
+            android:orientation="horizontal">
+            <Button android:id="@+id/btnSave" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Save" android:layout_margin="2dp" android:textSize="12sp" />
+            <ToggleButton android:id="@+id/toggleRegional" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textOn="Flavor ON" android:textOff="Flavor OFF" android:layout_margin="2dp" android:textSize="12sp" />
+            <Button android:id="@+id/btnReset" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Reset AI" android:layout_margin="2dp" android:textSize="12sp" />
+            <Button android:id="@+id/btnClear" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Clear" android:backgroundTint="#FF5555" android:layout_margin="2dp" android:textSize="12sp" />
+        </LinearLayout>
+    </HorizontalScrollView>
 
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="AI Ready"
+        android:textColor="#00FF00"
+        android:gravity="center"
+        android:padding="4dp"/>
+
+    <ScrollView
+        android:id="@+id/scrollTranscript"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@drawable/transcript_bg"
+        android:layout_marginVertical="8dp">
         <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Status: Syncing..."
-            android:textColor="#BBBBBB" />
-
-        <ScrollView
-            android:id="@+id/scrollTranscript"
+            android:id="@+id/tvTranscript"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_below="@id/btnClear"
-            android:layout_above="@+id/pulseContainer"
-            android:layout_marginVertical="8dp"
-            android:background="@drawable/transcript_bg">
-            <TextView
-                android:id="@+id/tvTranscript"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="12dp"
-                android:textSize="18sp"
-                android:textColor="#FFFFFF" />
-        </ScrollView>
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF" />
+    </ScrollView>
 
-        <FrameLayout
-            android:id="@+id/pulseContainer"
-            android:layout_width="160dp"
-            android:layout_height="160dp"
-            android:layout_alignParentBottom="true"
-            android:layout_centerHorizontal="true">
-            <View android:id="@+id/pulse1" android:layout_width="match_parent" android:layout_height="match_parent"
-                android:background="@drawable/circle_shape" android:visibility="invisible" />
-            <View android:id="@+id/pulse2" android:layout_width="match_parent" android:layout_height="match_parent"
-                android:background="@drawable/circle_shape" android:visibility="invisible" />
-            <ImageButton
-                android:id="@+id/btnListen"
-                android:layout_width="70dp"
-                android:layout_height="70dp"
-                android:layout_gravity="center"
-                android:background="@drawable/circle_shape"
-                android:backgroundTint="#444444"
-                android:src="@android:drawable/ic_btn_speak_now" />
-        </FrameLayout>
-    </RelativeLayout>
+    <FrameLayout
+        android:id="@+id/pulseContainer"
+        android:layout_width="140dp"
+        android:layout_height="140dp"
+        android:layout_gravity="center">
+        <View android:id="@+id/pulse1" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/circle_shape" android:visibility="invisible" />
+        <View android:id="@+id/pulse2" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/circle_shape" android:visibility="invisible" />
+        <ImageButton
+            android:id="@+id/btnListen"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_gravity="center"
+            android:background="@drawable/circle_shape"
+            android:backgroundTint="#444444"
+            android:src="@android:drawable/ic_btn_speak_now" />
+    </FrameLayout>
 </LinearLayout>
