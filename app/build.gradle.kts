@@ -1,51 +1,61 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
-    namespace = "com.example.polyglotvoice"
-    compileSdk = 35
+    namespace 'com.example.polyglotvoice'
+    compileSdk 34
 
     defaultConfig {
-        applicationId = "com.example.polyglotvoice"
-        minSdk = 24
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        applicationId "com.example.polyglotvoice"
+        minSdk 24 // Required for ML Kit and modern TTS features
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     
-    // ML Kit & Language Support
-    buildFeatures {
-        viewBinding = true
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
-	compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+    
+    kotlinOptions {
+        jvmTarget = '1.8'
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-	packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-            merges += "META-INF/LICENSE*"
-        }
+    // Ensures that the layout editor and build system see your resources correctly
+    buildFeatures {
+        viewBinding true
     }
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("com.google.mlkit:translate:17.0.3")
-    implementation("com.google.mlkit:language-id:17.0.6")
+    // Core Android libraries
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    // ML Kit Translation (Natural Language Processing)
+    // This provides the offline translation models
+    implementation 'com.google.mlkit:translate:17.0.1'
+
+    // ML Kit Language Identification
+    // This allows the app to distinguish between English and Spanish automatically
+    implementation 'com.google.mlkit:language-id:17.0.4'
+
+    // Unit Testing
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
