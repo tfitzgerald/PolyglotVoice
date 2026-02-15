@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.PolyglotVoice" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#1F1F1F</item>
+    </style>
+</resources>
