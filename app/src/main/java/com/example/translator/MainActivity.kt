@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -27,7 +26,6 @@ import androidx.core.content.ContextCompat
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.translate.*
-import java.io.FileOutputStream
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -60,8 +58,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnSave).setOnClickListener { saveTranscript() }
         findViewById<ImageButton>(R.id.btnWhatsApp).setOnClickListener { shareToWhatsApp() }
         findViewById<ImageButton>(R.id.btnShare).setOnClickListener { shareGeneral() }
-        findViewById<Button>(R.id.btnClear).setOnClickListener { tvTranscript.text = "" }
-        findViewById<Button>(R.id.btnReset).setOnClickListener { setupTranslators() }
+        findViewById<ImageButton>(R.id.btnClear).setOnClickListener { tvTranscript.text = "" }
+        findViewById<ImageButton>(R.id.btnReset).setOnClickListener { setupTranslators() }
+        
         findViewById<ToggleButton>(R.id.toggleFlavor).setOnCheckedChangeListener { _, isChecked -> 
             isRegionalFlavorEnabled = isChecked 
         }
@@ -129,9 +128,12 @@ class MainActivity : AppCompatActivity() {
     private fun performTranslation(text: String, trans: Translator, loc: Locale) {
         isAiSpeaking = true
         trans.translate(text).addOnSuccessListener { result ->
-            val output = if (loc.language == "es" && isRegionalFlavorEnabled) {
-                result.replace("niño", "chigüilín").replace("amigo", "compa").replace("trabajo", "chamba")
-            } else result
+            var output = result
+            if (loc.language == "es" && isRegionalFlavorEnabled) {
+                output = output.replace("niño", "chigüilín", true)
+                               .replace("amigo", "compa", true)
+                               .replace("trabajo", "chamba", true)
+            }
             updateUI(text, output, loc.language == "es")
             tts.language = loc
             tts.speak(output, TextToSpeech.QUEUE_FLUSH, null, "ID")
@@ -161,10 +163,10 @@ class MainActivity : AppCompatActivity() {
         if (text.isEmpty()) return
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            `package` = "com.whatsapp"
+            setPackage("com.whatsapp")
             putExtra(Intent.EXTRA_TEXT, text)
         }
-        try { startActivity(intent) } catch (e: Exception) { Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show() }
+        try { startActivity(intent) } catch (e: Exception) { Toast.makeText(this, "WhatsApp not found", Toast.LENGTH_SHORT).show() }
     }
 
     private fun shareGeneral() {
@@ -174,15 +176,15 @@ class MainActivity : AppCompatActivity() {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, text)
         }
-        startActivity(Intent.createChooser(intent, "Share via DM/Email"))
+        startActivity(Intent.createChooser(intent, "Share/DM"))
     }
 
     private fun saveTranscript() {
         val content = tvTranscript.text.toString()
         if (content.isEmpty()) return
-        val name = "transcript_${System.currentTimeMillis()}.txt"
+        val name = "polyglot_${System.currentTimeMillis()}.txt"
         openFileOutput(name, Context.MODE_PRIVATE).use { it.write(content.toByteArray()) }
-        Toast.makeText(this, "Saved as $name", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Saved $name", Toast.LENGTH_SHORT).show()
     }
 
     private fun triggerPulse(color: Int) {
@@ -212,7 +214,7 @@ class MainActivity : AppCompatActivity() {
         val conditions = DownloadConditions.Builder().build()
         enEsTranslator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build())
         esEnTranslator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build())
-        tvStatus.text = "SYNCING AI..."
+        tvStatus.text = "SYNCING..."
         enEsTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
             esEnTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
                 runOnUiThread { tvStatus.text = "AI READY" }
