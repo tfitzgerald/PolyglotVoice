@@ -1,118 +1,71 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#121212"
-    android:padding="8dp">
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="4dp"
-        android:paddingEnd="12dp" 
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp">
+    <Button
+        android:id="@+id/btnSave"
+        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:layout_margin="2dp"
+        android:padding="2dp"
+        android:text="Save"
+        android:textSize="10sp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp" />
 
-        <Button 
-            android:id="@+id/btnSave" 
-            android:layout_width="wrap_content" 
-            android:layout_height="wrap_content" 
-            android:text="Save" 
-            android:layout_margin="2dp" 
-            android:textSize="10sp" 
-            style="@style/Widget.MaterialComponents.Button.TextButton"/>
+    <ToggleButton
+        android:id="@+id/toggleRegional"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:layout_margin="2dp"
+        android:textOn="Flavor ON"
+        android:textOff="Flavor OFF"
+        android:textSize="9sp"
+        android:minWidth="0dp"
+        android:minHeight="0dp" />
 
-        <ToggleButton 
-            android:id="@+id/toggleRegional" 
-            android:layout_width="wrap_content" 
-            android:layout_height="wrap_content" 
-            android:textOn="Flavor ON" 
-            android:textOff="Flavor OFF" 
-            android:layout_margin="2dp" 
-            android:textSize="10sp" />
+    <Button
+        android:id="@+id/btnReset"
+        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:layout_margin="2dp"
+        android:padding="2dp"
+        android:text="Reset"
+        android:textSize="10sp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp" />
 
-        <Button 
-            android:id="@+id/btnReset" 
-            android:layout_width="wrap_content" 
-            android:layout_height="wrap_content" 
-            android:text="Reset" 
-            android:layout_margin="2dp" 
-            android:textSize="10sp"
-            style="@style/Widget.MaterialComponents.Button.TextButton"/>
-
-        <View 
-            android:layout_width="0dp" 
-            android:layout_height="0dp" 
-            android:layout_weight="1" />
-
-        <Button 
-            android:id="@+id/btnClear" 
-            android:layout_width="wrap_content" 
-            android:layout_height="wrap_content" 
-            android:text="Clear" 
-            android:backgroundTint="#FF5555" 
-            android:textColor="#FFFFFF"
-            android:layout_marginEnd="4dp"
-            android:textSize="10sp" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Initializing AI..."
-        android:textColor="#00FF00"
-        android:gravity="center"
-        android:padding="4dp"/>
-
-    <ScrollView
-        android:id="@+id/scrollTranscript"
-        android:layout_width="match_parent"
+    <View
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginVertical="8dp">
-        
-        <TextView
-            android:id="@+id/tvTranscript"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="14dp"
-            android:textSize="20sp"
-            android:lineSpacingExtra="8dp"
-            android:bufferType="spannable"
-            android:forceDarkAllowed="false"
-            android:textColor="#FFFFFF" /> 
-    </ScrollView>
+        android:layout_weight="1" />
 
-    <FrameLayout
-        android:layout_width="160dp"
-        android:layout_height="160dp"
-        android:layout_gravity="center"
-        android:layout_marginBottom="20dp">
-        
-        <View android:id="@+id/pulse1" 
-            android:layout_width="match_parent" 
-            android:layout_height="match_parent" 
-            android:background="@drawable/circle_shape" 
-            android:visibility="invisible" />
-            
-        <View android:id="@+id/pulse2" 
-            android:layout_width="match_parent" 
-            android:layout_height="match_parent" 
-            android:background="@drawable/circle_shape" 
-            android:visibility="invisible" />
-            
-        <ImageButton
-            android:id="@+id/btnListen"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_gravity="center"
-            android:background="@drawable/circle_shape"
-            android:backgroundTint="#333333"
-            android:src="@android:drawable/ic_btn_speak_now"
-            android:contentDescription="Start Listening" />
-    </FrameLayout>
+    <Button
+        android:id="@+id/btnClear"
+        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:layout_margin="2dp"
+        android:padding="2dp"
+        android:text="Clear"
+        android:backgroundTint="#FF5555"
+        android:textColor="#FFFFFF"
+        android:textSize="10sp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp" />
+
 </LinearLayout>

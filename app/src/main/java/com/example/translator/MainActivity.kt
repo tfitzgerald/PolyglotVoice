@@ -102,18 +102,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyColimaFlavor(t: String): String {
-        var r = t
-        val dictionary = mapOf(
-            "niño" to "chigüilín", 
-            "amigo" to "compa", 
-            "trabajo" to "chamba", 
-            "dinero" to "feria",
-            "autobús" to "la ruta"
-        )
-        for ((k, v) in dictionary) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
-        return r
-    }
+	private fun applyColimaFlavor(t: String): String {
+		var r = t
+		val dictionary = mapOf(
+			"niño" to "chigüilín", 
+			"amigo" to "compa", 
+			"trabajo" to "chamba", 
+			"dinero" to "feria",
+			"autobús" to "la ruta",
+			"fofo" to "bofo",      // Added
+			"arrugado" to "pachichi" // Added
+		)
+		for ((k, v) in dictionary) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
+		return r
+	}
 
     private fun saveAndShare() {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
@@ -162,10 +164,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
         }
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-            override fun onRmsChanged(rmsdB: Float) {
-                // Real-time voice feedback
-                if (rmsdB > 2f) { pulse1.visibility = View.VISIBLE; pulse1.alpha = 0.4f }
-            }
+             
             override fun onResults(r: Bundle?) { 
                 r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { 
                     detectLanguage(it) 
