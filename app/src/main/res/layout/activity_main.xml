@@ -61,7 +61,8 @@
             android:id="@+id/btnListenFrame"
             android:layout_width="100dp"
             android:layout_height="100dp"
-            android:background="@android:drawable/screen_background_light_transparent"
+            android:background="@android:drawable/btn_default_small"
+            android:backgroundTint="#333333"
             android:clickable="true"
             android:focusable="true">
             <ImageView
