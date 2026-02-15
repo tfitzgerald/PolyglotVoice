@@ -34,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scrollTranscript: ScrollView
     private lateinit var tvStatus: TextView
     private lateinit var pulseIndicator: View
+    private lateinit var btnListenIcon: ImageView
     
     private var speechRecognizer: SpeechRecognizer? = null
     private lateinit var tts: TextToSpeech
@@ -52,11 +53,13 @@ class MainActivity : AppCompatActivity() {
         scrollTranscript = findViewById(R.id.scrollTranscript)
         tvStatus = findViewById(R.id.tvStatus)
         pulseIndicator = findViewById(R.id.pulseIndicator)
+        btnListenIcon = findViewById(R.id.btnListenIcon)
 
-        findViewById<ImageButton>(R.id.btnListen).setOnClickListener { toggleListening() }
+        findViewById<FrameLayout>(R.id.btnListenFrame).setOnClickListener { toggleListening() }
         findViewById<Button>(R.id.btnSave).setOnClickListener { saveTranscript() }
         findViewById<Button>(R.id.btnClear).setOnClickListener { tvTranscript.text = "" }
         findViewById<Button>(R.id.btnReset).setOnClickListener { setupTranslators() }
+        
         findViewById<ToggleButton>(R.id.toggleFlavor).setOnCheckedChangeListener { _, isChecked -> 
             isRegionalFlavorEnabled = isChecked 
         }
@@ -74,7 +77,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onResults(r: Bundle?) {
                     val text = r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0) ?: ""
                     if (text.isNotEmpty()) detectAndTranslate(text)
-                    else if (isListening) startListening() // Keep listening if silent
+                    else if (isListening) startListening()
                 }
                 override fun onError(p0: Int) { if (isListening) startListening() }
                 override fun onReadyForSpeech(p0: Bundle?) { tvStatus.text = "Listening..." }
@@ -92,18 +95,20 @@ class MainActivity : AppCompatActivity() {
         if (isListening) {
             isListening = false
             speechRecognizer?.stopListening()
+            btnListenIcon.setColorFilter(Color.WHITE)
             tvStatus.text = "AI READY"
         } else {
             isListening = true
+            btnListenIcon.setColorFilter(Color.RED)
             startListening()
         }
     }
 
     private fun startListening() {
         if (isAiSpeaking) return
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNITION_SERVICE).apply {
+            action = RecognizerIntent.ACTION_RECOGNIZE_SPEECH
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
         runOnUiThread { speechRecognizer?.startListening(intent) }
     }
@@ -177,7 +182,7 @@ class MainActivity : AppCompatActivity() {
         val conditions = DownloadConditions.Builder().build()
         enEsTranslator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build())
         esEnTranslator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build())
-        tvStatus.text = "Loading AI..."
+        tvStatus.text = "Syncing..."
         enEsTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
             esEnTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
                 runOnUiThread { tvStatus.text = "AI READY" }
@@ -188,7 +193,7 @@ class MainActivity : AppCompatActivity() {
     private fun saveTranscript() {
         val content = tvTranscript.text.toString()
         if (content.isEmpty()) return
-        val name = "polyglot_${System.currentTimeMillis()}.txt"
+        val name = "transcript_${System.currentTimeMillis()}.txt"
         openFileOutput(name, Context.MODE_PRIVATE).use { it.write(content.toByteArray()) }
         Toast.makeText(this, "Saved $name", Toast.LENGTH_SHORT).show()
     }
