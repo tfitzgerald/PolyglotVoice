@@ -154,32 +154,47 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun startContinuousMode() {
-        if (isAiSpeaking) return
-        isListening = true
-        startPulse(Color.DKGRAY) // Neutral pulse while waiting
-        speechRecognizer?.destroy()
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        }
-        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-             
-            override fun onResults(r: Bundle?) { 
-                r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { 
-                    detectLanguage(it) 
-                } 
-            }
-            override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
-            override fun onReadyForSpeech(p0: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onBufferReceived(p0: ByteArray?) {}
-            override fun onEndOfSpeech() {}
-            override fun onPartialResults(p0: Bundle?) {}
-            override fun onEvent(p0: Int, p1: Bundle?) {}
-        })
-        speechRecognizer?.startListening(intent)
-    }
+	private fun startContinuousMode() {
+		if (isAiSpeaking) return
+		isListening = true
+		startPulse(Color.DKGRAY) 
+		speechRecognizer?.destroy()
+		speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+		val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+			putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+		}
+		
+		speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+			// THE FIX: This specific function now correctly handles the real-time pulse
+			override fun onRmsChanged(rmsdB: Float) {
+				if (rmsdB > 2f && isListening) { 
+					runOnUiThread {
+						pulse1.visibility = View.VISIBLE
+						pulse1.alpha = 0.4f
+					}
+				}
+			}
+
+			override fun onResults(r: Bundle?) { 
+				r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { 
+					detectLanguage(it) 
+				} 
+			}
+
+			override fun onError(e: Int) { 
+				if (isListening && !isAiSpeaking) startContinuousMode() 
+			}
+
+			// REQUIRED MEMBERS: These must exist even if empty to satisfy the compiler
+			override fun onReadyForSpeech(params: Bundle?) {}
+			override fun onBeginningOfSpeech() {}
+			override fun onBufferReceived(buffer: ByteArray?) {}
+			override fun onEndOfSpeech() {}
+			override fun onPartialResults(partialResults: Bundle?) {}
+			override fun onEvent(eventType: Int, params: Bundle?) {}
+		})
+		speechRecognizer?.startListening(intent)
+	}
 
     private fun detectLanguage(text: String) {
         LanguageIdentification.getClient().identifyLanguage(text).addOnSuccessListener { lang ->
