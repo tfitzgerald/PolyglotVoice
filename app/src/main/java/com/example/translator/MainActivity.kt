@@ -68,27 +68,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
-        isAiSpeaking = true
-        speechRecognizer?.stopListening()
-        trans.translate(text).addOnSuccessListener { res ->
-            val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyManzanilloFlavor(res) else res
-            
-            // HTML Color Formatting
-            val inColor = if (loc.language == "es") "#FFFF00" else "#00FFFF" 
-            val outColor = if (loc.language == "es") "#00FFFF" else "#FFFF00" 
+	private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
+		isAiSpeaking = true
+		speechRecognizer?.stopListening()
+		
+		trans.translate(text).addOnSuccessListener { res ->
+			val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyManzanilloFlavor(res) else res
+			
+			// HIGHER CONTRAST COLORS
+			// English (In or Out): Cyan (#00FFFF)
+			// Spanish (In or Out): Yellow (#FFFF00)
+			val inColor = if (loc.language == "es") "#FFFF00" else "#00FFFF" 
+			val outColor = if (loc.language == "es") "#00FFFF" else "#FFFF00" 
 
-            val entry = "<font color='$inColor'>In: $text</font><br>" +
-                        "<font color='$outColor'>Out: $out</font><br><br>"
-            
-            fullHtmlTranscript += entry
-            tvTranscript.text = Html.fromHtml(fullHtmlTranscript, Html.FROM_HTML_MODE_LEGACY)
-            
-            scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
-            tts.language = loc
-            tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
-        }
-    }
+			// Create a distinct block for each entry
+			val entry = "<br><font color='$inColor'><b>In:</b> $text</font><br>" +
+						"<font color='$outColor'><b>Out:</b> $out</font><br>" +
+						"<font color='#555555'>────────────────</font>"
+			
+			fullHtmlTranscript += entry
+
+			// FORCE RE-RENDER ON UI THREAD
+			runOnUiThread {
+				tvTranscript.setText(
+					Html.fromHtml(fullHtmlTranscript, Html.FROM_HTML_MODE_LEGACY), 
+					TextView.BufferType.SPANNABLE
+				)
+				scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
+			}
+
+			tts.language = loc
+			tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
+		}
+	}
 
     private fun applyManzanilloFlavor(t: String): String {
         var res = t
