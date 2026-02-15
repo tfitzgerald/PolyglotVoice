@@ -1,8 +1,11 @@
 package com.example.polyglotvoice
 
 import android.Manifest
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -41,6 +44,10 @@ class MainActivity : AppCompatActivity() {
     private var isAiSpeaking = false
     private var isRegionalFlavorEnabled = false
 
+    // Color constants for the bubbles
+    private val COLOR_EN = Color.parseColor("#006064") // Dark Cyan
+    private val COLOR_ES = Color.parseColor("#FBC02D") // Amber/Yellow
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -52,8 +59,13 @@ class MainActivity : AppCompatActivity() {
         btnListen = findViewById(R.id.btnListen)
         toggleRegional = findViewById(R.id.toggleRegional)
 
-        btnListen.setOnClickListener { if (isListening) stopListening() else startListening() }
-        toggleRegional.setOnCheckedChangeListener { _, isChecked -> isRegionalFlavorEnabled = isChecked }
+        btnListen.setOnClickListener { 
+            if (isListening) stopListening() else startListening() 
+        }
+        
+        toggleRegional.setOnCheckedChangeListener { _, isChecked -> 
+            isRegionalFlavorEnabled = isChecked 
+        }
 
         checkPermissions()
         setupTTS()
@@ -61,24 +73,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupTranslators() {
-        val optionsEnEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
-        val optionsEsEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
+        val optionsEnEs = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(TranslateLanguage.SPANISH).build()
+        val optionsEsEn = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.SPANISH)
+            .setTargetLanguage(TranslateLanguage.ENGLISH).build()
+
         enEsTranslator = Translation.getClient(optionsEnEs)
         esEnTranslator = Translation.getClient(optionsEsEn)
 
+        // No requireWifi() to ensure functionality in Tecomán on cellular
         val cond = DownloadConditions.Builder().build()
+        tvStatus.text = "Downloading AI Models..."
+
         enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
             esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
                 runOnUiThread { tvStatus.text = "AI READY" }
             }
+        }.addOnFailureListener { e ->
+            runOnUiThread { tvStatus.text = "Error: ${e.message}" }
         }
     }
 
     private fun startListening() {
         if (isAiSpeaking) return
         isListening = true
-        tvStatus.text = "Listening..."
-        pulseIndicator.visibility = View.VISIBLE
+        runOnUiThread { 
+            tvStatus.text = "Listening..."
+            triggerPulse(Color.GRAY) 
+        }
         
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this).apply {
             setRecognitionListener(object : RecognitionListener {
@@ -86,7 +110,9 @@ class MainActivity : AppCompatActivity() {
                     val text = r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0) ?: ""
                     detectAndTranslate(text)
                 }
-                override fun onError(p0: Int) { if (isListening) startListening() }
+                override fun onError(p0: Int) { 
+                    if (isListening && !isAiSpeaking) startListening() 
+                }
                 override fun onReadyForSpeech(p0: Bundle?) {}
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(p0: Float) {}
@@ -106,8 +132,10 @@ class MainActivity : AppCompatActivity() {
         if (text.isBlank()) return
         LanguageIdentification.getClient().identifyLanguage(text).addOnSuccessListener { lang ->
             if (lang == "en") {
+                triggerPulse(COLOR_EN)
                 performTranslation(text, enEsTranslator, Locale("es", "MX"))
             } else {
+                triggerPulse(COLOR_ES)
                 performTranslation(text, esEnTranslator, Locale.US)
             }
         }
@@ -115,20 +143,28 @@ class MainActivity : AppCompatActivity() {
 
     private fun performTranslation(text: String, trans: Translator, loc: Locale) {
         isAiSpeaking = true
-        trans.translate(text).addOnSuccessListener { result ->
+        // Clean text to avoid "The Oldest" errors
+        val cleanInput = text.trim().replace(Regex("[.\\-_]"), "")
+        
+        trans.translate(cleanInput).addOnSuccessListener { result ->
             val finalOutput = if (loc.language == "es" && isRegionalFlavorEnabled) {
-                result.replace("niño", "chigüilín").replace("amigo", "compa")
+                result.replace("niño", "chigüilín")
+                      .replace("amigo", "compa")
+                      .replace("trabajo", "chamba")
             } else result
             
-            updateUI(text, finalOutput, loc.language == "es")
+            updateTranscriptUI(cleanInput, finalOutput, loc.language == "es")
+            
             tts.language = loc
             tts.speak(finalOutput, TextToSpeech.QUEUE_FLUSH, null, "ID")
-        }.addOnFailureListener { isAiSpeaking = false }
+        }.addOnFailureListener { 
+            isAiSpeaking = false 
+        }
     }
 
-    private fun updateUI(input: String, output: String, toEs: Boolean) {
-        val inCol = if (toEs) Color.parseColor("#006064") else Color.parseColor("#FBC02D")
-        val outCol = if (toEs) Color.parseColor("#FBC02D") else Color.parseColor("#006064")
+    private fun updateTranscriptUI(input: String, output: String, toEs: Boolean) {
+        val inCol = if (toEs) COLOR_EN else COLOR_ES
+        val outCol = if (toEs) COLOR_ES else COLOR_EN
         
         val builder = SpannableStringBuilder()
         val sIn = SpannableString(" IN: $input \n").apply { 
@@ -147,12 +183,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun triggerPulse(color: Int) {
+        pulseIndicator.backgroundTintList = ColorStateList.valueOf(color)
+        val scaleX = ObjectAnimator.ofFloat(pulseIndicator, "scaleX", 1f, 3f)
+        val scaleY = ObjectAnimator.ofFloat(pulseIndicator, "scaleY", 1f, 3f)
+        val alpha = ObjectAnimator.ofFloat(pulseIndicator, "alpha", 1f, 0f)
+        
+        AnimatorSet().apply {
+            playTogether(scaleX, scaleY, alpha)
+            duration = 800
+            start()
+        }
+    }
+
     private fun setupTTS() {
         tts = TextToSpeech(this) { 
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(p0: String?) { isAiSpeaking = true }
                 override fun onDone(p0: String?) { 
                     isAiSpeaking = false
+                    // Resume listening automatically for continuous flow
                     if (isListening) runOnUiThread { startListening() } 
                 }
                 override fun onError(p0: String?) { isAiSpeaking = false }
@@ -163,7 +213,6 @@ class MainActivity : AppCompatActivity() {
     private fun stopListening() { 
         isListening = false
         tvStatus.text = "AI READY"
-        pulseIndicator.visibility = View.INVISIBLE
         speechRecognizer?.destroy() 
     }
 
