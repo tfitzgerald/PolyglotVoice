@@ -11,6 +11,7 @@ import android.speech.*
 import android.speech.tts.*
 import android.text.*
 import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -20,6 +21,9 @@ import com.example.polyglotvoice.R
 import com.google.mlkit.common.model.*
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.translate.*
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -47,8 +51,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnClear).setOnClickListener { 
             tvTranscript.setText("", TextView.BufferType.SPANNABLE) 
         }
-        findViewById<Button>(R.id.btnSave).setOnClickListener { /* Add save logic if needed */ }
+        
+        findViewById<Button>(R.id.btnSave).setOnClickListener { saveConversation() }
+        
         findViewById<Button>(R.id.btnReset).setOnClickListener { resetModels() }
+        
         findViewById<ToggleButton>(R.id.toggleRegional).setOnCheckedChangeListener { _, isChecked ->
             isRegionalFlavorEnabled = isChecked
         }
@@ -71,35 +78,67 @@ class MainActivity : AppCompatActivity() {
             val inColor = if (loc.language == "es") Color.YELLOW else Color.CYAN
             val outColor = if (loc.language == "es") Color.CYAN else Color.YELLOW
 
-            val sIn = SpannableString("In: $text\n")
+            val sIn = SpannableStringBuilder("In: $text\n")
             sIn.setSpan(ForegroundColorSpan(inColor), 0, sIn.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            val sOut = SpannableString("Out: $out\n---\n")
+            sIn.setSpan(StyleSpan(android.graphics.Typeface.BOLD), 0, 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+            val sOut = SpannableStringBuilder("Out: $out\n")
             sOut.setSpan(ForegroundColorSpan(outColor), 0, sOut.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            sOut.setSpan(StyleSpan(android.graphics.Typeface.BOLD), 0, 4, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+            val divider = SpannableString("────────────────\n")
+            divider.setSpan(ForegroundColorSpan(Color.DKGRAY), 0, divider.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
             runOnUiThread {
                 tvTranscript.append(sIn)
                 tvTranscript.append(sOut)
+                tvTranscript.append(divider)
                 scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
             }
 
             tts.language = loc
             tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
+        }.addOnFailureListener {
+            isAiSpeaking = false
+            if (isListening) startContinuousMode()
         }
     }
 
     private fun applyFlavor(t: String): String {
         var r = t
-        val d = mapOf("niño" to "chigüilín", "amigo" to "compa", "trabajo" to "chamba")
+        val d = mapOf("niño" to "chigüilín", "amigo" to "compa", "trabajo" to "chamba", "dinero" to "feria")
         for ((k, v) in d) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
         return r
     }
 
+    private fun saveConversation() {
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
+        val fileName = "Transcript_$timestamp.txt"
+        val content = tvTranscript.text.toString()
+
+        val docsDir = getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS)
+        val file = File(docsDir, fileName)
+
+        try {
+            FileOutputStream(file).use { it.write(content.toByteArray()) }
+            
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, content)
+            }
+            startActivity(Intent.createChooser(shareIntent, "Share Log"))
+            Toast.makeText(this, "Saved to App Documents", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun setupTranslators() {
-        val options = TranslatorOptions.Builder()
-            .setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
-        enEsTranslator = Translation.getClient(options)
-        esEnTranslator = Translation.getClient(TranslatorOptions.Builder()
-            .setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build())
+        val enEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
+        val esEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
+        
+        enEsTranslator = Translation.getClient(enEs)
+        esEnTranslator = Translation.getClient(esEn)
         
         val cond = DownloadConditions.Builder().requireWifi().build()
         enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
@@ -112,7 +151,10 @@ class MainActivity : AppCompatActivity() {
     private fun setupTTS() {
         tts = TextToSpeech(this) {
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                override fun onDone(id: String?) { isAiSpeaking = false; runOnUiThread { if (isListening) startContinuousMode() } }
+                override fun onDone(id: String?) { 
+                    isAiSpeaking = false
+                    runOnUiThread { if (isListening) startContinuousMode() } 
+                }
                 override fun onStart(id: String?) { isAiSpeaking = true }
                 override fun onError(id: String?) { isAiSpeaking = false }
             })
@@ -130,7 +172,9 @@ class MainActivity : AppCompatActivity() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
         }
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-            override fun onResults(r: Bundle?) { r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detect(it) } }
+            override fun onResults(r: Bundle?) { 
+                r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detect(it) } 
+            }
             override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
             override fun onReadyForSpeech(p0: Bundle?) {}
             override fun onBeginningOfSpeech() {}
@@ -145,9 +189,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun detect(text: String) {
         LanguageIdentification.getClient().identifyLanguage(text).addOnSuccessListener { lang ->
-            if (lang == "es") translateAndSpeak(text, esEnTranslator, Locale.US)
-            else if (lang == "en") translateAndSpeak(text, enEsTranslator, Locale("es", "MX"))
-            else if (isListening) startContinuousMode()
+            when (lang) {
+                "es" -> translateAndSpeak(text, esEnTranslator, Locale.US)
+                "en" -> translateAndSpeak(text, enEsTranslator, Locale("es", "MX"))
+                else -> if (isListening) startContinuousMode()
+            }
         }
     }
 
@@ -168,6 +214,16 @@ class MainActivity : AppCompatActivity() {
         manager.deleteDownloadedModel(en); manager.deleteDownloadedModel(es).addOnSuccessListener { setupTranslators() }
     }
 
-    private fun stopContinuousMode() { isListening = false; pulse1.visibility = View.INVISIBLE; pulse2.visibility = View.INVISIBLE; speechRecognizer?.destroy() }
-    private fun checkPermissions() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) }
+    private fun stopContinuousMode() { 
+        isListening = false
+        pulse1.visibility = View.INVISIBLE
+        pulse2.visibility = View.INVISIBLE
+        speechRecognizer?.destroy() 
+    }
+
+    private fun checkPermissions() { 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+        }
+    }
 }
