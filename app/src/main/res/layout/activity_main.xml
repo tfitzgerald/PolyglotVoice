@@ -5,31 +5,33 @@
 
     <LinearLayout android:id="@+id/llDownload" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-        <TextView android:id="@+id/tvDownloadLabel" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="Downloading AI Models..." android:textColor="#FFFFFF"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Syncing Offline AI..." android:textColor="#FFFFFF"/>
         <ProgressBar android:id="@+id/pbModel" style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent" android:layout_height="wrap_content" android:indeterminate="true" />
     </LinearLayout>
 
-    <TextView android:id="@+id/tvStatus" android:layout_width="wrap_content"
-        android:layout_height="wrap_content" android:layout_below="@id/llDownload"
-        android:text="Initializing..." android:textColor="#BBBBBB" />
+    <Button android:id="@+id/btnClear" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true" android:text="Clear" android:backgroundTint="#FF5555" />
 
-    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent"
-        android:layout_above="@+id/pulseContainer" android:layout_below="@id/tvStatus" android:layout_marginVertical="10dp">
+    <TextView android:id="@+id/tvStatus" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_below="@id/llDownload" android:text="Initializing..." android:textColor="#BBBBBB" />
+
+    <ScrollView android:id="@+id/scrollTranscript" android:layout_width="match_parent"
+        android:layout_height="match_parent" android:layout_below="@id/btnClear"
+        android:layout_above="@+id/pulseContainer" android:layout_marginVertical="10dp"
+        android:scrollbarStyle="insideOverlay" android:fadeScrollbars="false"
+        android:background="@drawable/transcript_bg">
         <TextView android:id="@+id/tvTranscript" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="18sp" />
+            android:layout_height="wrap_content" android:padding="15dp" android:textSize="18sp" android:textColor="#FFFFFF" />
     </ScrollView>
 
-    <FrameLayout android:id="@+id/pulseContainer" android:layout_width="200dp"
-        android:layout_height="200dp" android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true" android:layout_marginBottom="20dp">
-        
+    <FrameLayout android:id="@+id/pulseContainer" android:layout_width="200dp" android:layout_height="200dp"
+        android:layout_alignParentBottom="true" android:layout_centerHorizontal="true">
         <View android:id="@+id/pulse1" android:layout_width="match_parent" android:layout_height="match_parent"
             android:background="@drawable/circle_shape" android:visibility="invisible" />
         <View android:id="@+id/pulse2" android:layout_width="match_parent" android:layout_height="match_parent"
             android:background="@drawable/circle_shape" android:visibility="invisible" />
-
         <ImageButton android:id="@+id/btnListen" android:layout_width="80dp" android:layout_height="80dp"
             android:layout_gravity="center" android:background="@drawable/circle_shape"
             android:backgroundTint="#444444" android:src="@android:drawable/ic_btn_speak_now" />

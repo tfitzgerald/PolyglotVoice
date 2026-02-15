@@ -3,15 +3,21 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/action_share"
-        android:title="Share Transcript"
-        android:icon="@android:drawable/ic_menu_share"
-        app:showAsAction="ifRoom" />
+        android:id="@+id/action_regional_flavor"
+        android:title="Manzanillo Flavor"
+        android:checkable="true"
+        app:showAsAction="never" />
 
     <item
         android:id="@+id/action_save"
         android:title="Save Conversation"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_share"
+        android:title="Share Transcript"
+        android:icon="@android:drawable/ic_menu_share"
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/action_clear"
@@ -22,5 +28,5 @@
         android:id="@+id/action_reset_models"
         android:title="Reset AI Models"
         app:showAsAction="never" />
-        
+
 </menu>
