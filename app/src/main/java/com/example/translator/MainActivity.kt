@@ -1,9 +1,9 @@
-package com.example.translator
+package com.example.polyglotvoice
 
 import android.Manifest
 import android.animation.*
 import android.content.*
-import android.content.pm.PackageManager // FIXED: Added missing import
+import android.content.pm.PackageManager 
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
@@ -15,6 +15,7 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.polyglotvoice.R // FIXED: Matches your namespace
 import com.google.mlkit.common.model.*
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.translate.*
@@ -45,7 +46,7 @@ class MainActivity : AppCompatActivity() {
         pulse1 = findViewById(R.id.pulse1)
         pulse2 = findViewById(R.id.pulse2)
 
-        // UI Listeners
+        // UI Listeners - Clear button on the right
         findViewById<Button>(R.id.btnClear).setOnClickListener { 
             fullHtmlTranscript = ""
             tvTranscript.text = "" 
@@ -73,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         trans.translate(text).addOnSuccessListener { res ->
             val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyManzanilloFlavor(res) else res
             
-            // HTML Coloring: Cyan (#00FFFF) and Yellow (#FFFF00)
+            // HTML Color Formatting
             val inColor = if (loc.language == "es") "#FFFF00" else "#00FFFF" 
             val outColor = if (loc.language == "es") "#00FFFF" else "#FFFF00" 
 
