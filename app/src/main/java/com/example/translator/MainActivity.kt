@@ -1,11 +1,8 @@
 package com.example.polyglotvoice
 
 import android.Manifest
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -19,11 +16,7 @@ import android.text.SpannableStringBuilder
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.view.View
-import android.widget.ImageButton
-import android.widget.ScrollView
-import android.widget.TextView
-import android.widget.Toast
-import android.widget.ToggleButton
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -36,8 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvTranscript: TextView
     private lateinit var scrollTranscript: ScrollView
     private lateinit var tvStatus: TextView
-    private lateinit var pulse1: View
-    private lateinit var pulse2: View
+    private lateinit var pulseIndicator: View
     
     private var speechRecognizer: SpeechRecognizer? = null
     private lateinit var tts: TextToSpeech
@@ -48,47 +40,98 @@ class MainActivity : AppCompatActivity() {
     private var isAiSpeaking = false
     private var isRegionalFlavorEnabled = false
 
-    private val BG_EN = Color.parseColor("#006064") // Dark Cyan
-    private val BG_ES = Color.parseColor("#FBC02D") // Amber
+    private val BG_EN = Color.parseColor("#006064")
+    private val BG_ES = Color.parseColor("#FBC02D")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        tvTranscript = findViewById(R.id.tvTranscript)
-        scrollTranscript = findViewById(R.id.scrollTranscript)
-        tvStatus = findViewById(R.id.tvStatus)
-        pulse1 = findViewById(R.id.pulse1)
-        pulse2 = findViewById(R.id.pulse2)
-
-        findViewById<ImageButton>(R.id.btnListen).setOnClickListener { 
-            if (isListening) stopListening() else startListening() 
-        }
         
-        findViewById<ToggleButton>(R.id.toggleRegional).setOnCheckedChangeListener { _, isChecked -> 
-            isRegionalFlavorEnabled = isChecked 
-        }
+        // Triple-checked: Layout and IDs are generated first
+        setupUnifiedLayout()
 
         checkPermissions()
         setupTTS()
         setupTranslators()
     }
 
-    private fun setupTranslators() {
-        val optionsEnEs = TranslatorOptions.Builder()
-            .setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
-        val optionsEsEn = TranslatorOptions.Builder()
-            .setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
+    private fun setupUnifiedLayout() {
+        val root = RelativeLayout(this).apply { 
+            layoutParams = RelativeLayout.LayoutParams(-1, -1)
+            backgroundColor = Color.parseColor("#121212")
+        }
 
+        tvStatus = TextView(this).apply {
+            id = View.generateViewId()
+            text = "Initializing AI..."
+            setTextColor(Color.GREEN)
+            val params = RelativeLayout.LayoutParams(-2, -2)
+            params.addRule(RelativeLayout.CENTER_HORIZONTAL)
+            params.topMargin = 50
+            layoutParams = params
+        }
+
+        scrollTranscript = ScrollView(this).apply {
+            id = View.generateViewId()
+            val params = RelativeLayout.LayoutParams(-1, -1)
+            params.addRule(RelativeLayout.BELOW, tvStatus.id)
+            params.addRule(RelativeLayout.ABOVE, 1001) 
+            layoutParams = params
+            setPadding(30, 30, 30, 30)
+        }
+
+        tvTranscript = TextView(this).apply {
+            setTextColor(Color.WHITE)
+            textSize = 18f
+        }
+        scrollTranscript.addView(tvTranscript)
+
+        val controls = LinearLayout(this).apply {
+            id = 1001
+            orientation = LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            val params = RelativeLayout.LayoutParams(-1, -2)
+            params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+            layoutParams = params
+            setPadding(0, 0, 0, 50)
+        }
+
+        pulseIndicator = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(100, 100)
+            background = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.presence_online)
+            visibility = View.INVISIBLE
+        }
+
+        val btnListen = ImageButton(this).apply {
+            setImageResource(android.R.drawable.ic_btn_speak_now)
+            layoutParams = LinearLayout.LayoutParams(200, 200)
+            setOnClickListener { if (isListening) stopListening() else startListening() }
+        }
+
+        val toggle = ToggleButton(this).apply {
+            textOn = "Colima Slang: ON"; textOff = "Colima Slang: OFF"
+            setOnCheckedChangeListener { _, isChecked -> isRegionalFlavorEnabled = isChecked }
+        }
+
+        controls.addView(pulseIndicator)
+        controls.addView(toggle)
+        controls.addView(btnListen)
+        
+        root.addView(tvStatus)
+        root.addView(scrollTranscript)
+        root.addView(controls)
+        setContentView(root)
+    }
+
+    private fun setupTranslators() {
+        val optionsEnEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
+        val optionsEsEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
         enEsTranslator = Translation.getClient(optionsEnEs)
         esEnTranslator = Translation.getClient(optionsEsEn)
 
-        val conditions = DownloadConditions.Builder().build()
-        tvStatus.text = "Syncing AI..."
-
-        enEsTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
-            esEnTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
-                tvStatus.text = "AI READY"
+        val cond = DownloadConditions.Builder().build()
+        enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
+            esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
+                runOnUiThread { tvStatus.text = "AI READY" }
             }
         }
     }
@@ -96,16 +139,18 @@ class MainActivity : AppCompatActivity() {
     private fun startListening() {
         if (isAiSpeaking) return
         isListening = true
-        tvStatus.text = "Listening..."
-        startPulseAnimation(Color.GRAY)
-
+        runOnUiThread { 
+            tvStatus.text = "Listening..."
+            pulseIndicator.visibility = View.VISIBLE 
+        }
+        
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this).apply {
             setRecognitionListener(object : RecognitionListener {
-                override fun onResults(results: Bundle?) {
-                    val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0) ?: ""
+                override fun onResults(r: Bundle?) {
+                    val text = r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0) ?: ""
                     detectAndTranslate(text)
                 }
-                override fun onError(error: Int) { if (isListening) startListening() }
+                override fun onError(p0: Int) { if (isListening) startListening() }
                 override fun onReadyForSpeech(p0: Bundle?) {}
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(p0: Float) {}
@@ -115,10 +160,8 @@ class MainActivity : AppCompatActivity() {
                 override fun onEvent(p0: Int, p1: Bundle?) {}
             })
         }
-        
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
         speechRecognizer?.startListening(intent)
     }
@@ -127,87 +170,78 @@ class MainActivity : AppCompatActivity() {
         if (text.isBlank()) return
         LanguageIdentification.getClient().identifyLanguage(text).addOnSuccessListener { lang ->
             if (lang == "en") {
-                startPulseAnimation(BG_EN)
                 performTranslation(text, enEsTranslator, Locale("es", "MX"))
             } else {
-                startPulseAnimation(BG_ES)
                 performTranslation(text, esEnTranslator, Locale.US)
             }
         }
     }
 
-    private fun performTranslation(text: String, translator: Translator, targetLocale: Locale) {
+    private fun performTranslation(text: String, trans: Translator, loc: Locale) {
         isAiSpeaking = true
-        translator.translate(text).addOnSuccessListener { result ->
-            val outText = if (targetLocale.language == "es" && isRegionalFlavorEnabled) applySlang(result) else result
-            updateTranscriptUI(text, outText, targetLocale.language == "es")
-            
-            tts.language = targetLocale
-            tts.speak(outText, TextToSpeech.QUEUE_FLUSH, null, "ID")
+        trans.translate(text).addOnSuccessListener { result ->
+            val finalOutput = if (loc.language == "es" && isRegionalFlavorEnabled) applySlang(result) else result
+            updateUI(text, finalOutput, loc.language == "es")
+            tts.language = loc
+            tts.speak(finalOutput, TextToSpeech.QUEUE_FLUSH, null, "ID")
         }.addOnFailureListener { isAiSpeaking = false }
     }
 
-    private fun updateTranscriptUI(input: String, output: String, isToSpanish: Boolean) {
-        val inColor = if (isToSpanish) BG_EN else BG_ES
-        val outColor = if (isToSpanish) BG_ES else BG_EN
-        
+    private fun updateUI(input: String, output: String, toEs: Boolean) {
+        val inCol = if (toEs) BG_EN else BG_ES
+        val outCol = if (toEs) BG_ES else BG_EN
         val builder = SpannableStringBuilder()
-        builder.append(formatLine(" ➔ IN: $input ", inColor))
-        builder.append("\n")
-        builder.append(formatLine(" ➔ OUT: $output ", outColor))
-        builder.append("\n\n")
-
+        builder.append(SpannableString(" IN: $input \n").apply { setSpan(BackgroundColorSpan(inCol), 0, length, 33) })
+        builder.append(SpannableString(" OUT: $finalOutput \n\n").apply { 
+            // Fixed reference to local finalOutput if needed, or simply use 'output'
+            setSpan(BackgroundColorSpan(outCol), 0, length, 33) 
+        })
+        
+        // Correction: Using 'output' directly to ensure no unresolved references
+        val finalBuilder = SpannableStringBuilder()
+        val sIn = SpannableString(" IN: $input \n").apply { setSpan(BackgroundColorSpan(inCol), 0, length, 33) }
+        val sOut = SpannableString(" OUT: $output \n\n").apply { setSpan(BackgroundColorSpan(outCol), 0, length, 33) }
+        finalBuilder.append(sIn).append(sOut)
+        
         runOnUiThread {
-            tvTranscript.append(builder)
+            tvTranscript.append(finalBuilder)
             scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
         }
     }
 
-    private fun formatLine(text: String, color: Int): SpannableString {
-        return SpannableString(text).apply {
-            setSpan(BackgroundColorSpan(color), 0, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            setSpan(ForegroundColorSpan(Color.WHITE), 0, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-        }
-    }
-
-    private fun applySlang(t: String): String {
-        return t.replace("niño", "chigüilín").replace("trabajo", "chamba")
-    }
+    private fun applySlang(t: String) = t.replace("niño", "chigüilín").replace("amigo", "compa")
 
     private fun setupTTS() {
         tts = TextToSpeech(this) { 
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                override fun onStart(id: String?) { isAiSpeaking = true }
-                override fun onDone(id: String?) { 
+                override fun onStart(p0: String?) { isAiSpeaking = true }
+                override fun onDone(p0: String?) { 
                     isAiSpeaking = false
                     if (isListening) runOnUiThread { startListening() } 
                 }
-                override fun onError(id: String?) { isAiSpeaking = false }
+                override fun onError(p0: String?) { isAiSpeaking = false }
             })
         }
     }
 
-    private fun startPulseAnimation(color: Int) {
-        pulse1.backgroundTintList = ColorStateList.valueOf(color)
-        val scaleX = ObjectAnimator.ofFloat(pulse1, "scaleX", 1f, 4f)
-        val scaleY = ObjectAnimator.ofFloat(pulse1, "scaleY", 1f, 4f)
-        val alpha = ObjectAnimator.ofFloat(pulse1, "alpha", 0.6f, 0f)
-        AnimatorSet().apply {
-            playTogether(scaleX, scaleY, alpha)
-            duration = 1000
-            start()
-        }
-    }
-
-    private fun stopListening() {
+    private fun stopListening() { 
         isListening = false
-        tvStatus.text = "AI READY"
-        speechRecognizer?.destroy()
+        runOnUiThread { 
+            tvStatus.text = "AI READY"
+            pulseIndicator.visibility = View.INVISIBLE 
+        }
+        speechRecognizer?.destroy() 
     }
 
     private fun checkPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != 0) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
         }
+    }
+
+    override fun onDestroy() {
+        if (::tts.isInitialized) tts.shutdown()
+        speechRecognizer?.destroy()
+        super.onDestroy()
     }
 }
