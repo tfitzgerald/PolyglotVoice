@@ -40,7 +40,7 @@
 			android:textSize="20sp"
 			android:bufferType="spannable"
 			android:forceDarkAllowed="false"
-			android:textColor="#FFFFFF" />
+			android:textColor="#888888" />
     </ScrollView>
 
     <FrameLayout
