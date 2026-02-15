@@ -3,6 +3,7 @@ name: Build PolyglotVoice APK
 on:
   push:
     branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -21,5 +22,13 @@ jobs:
       - name: Grant Execute Permission
         run: chmod +x gradlew
 
-      - name: Clean and Build
-        run: ./gradlew clean assembleDebug --no-daemon --stacktrace
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PolyglotVoice-Release
+          # Using a wildcard (**) to find the APK regardless of the subfolder structure
+          path: "**/build/outputs/apk/debug/*.apk"
+          if-no-files-found: error # This will force the log to tell us IF it can't find the file
