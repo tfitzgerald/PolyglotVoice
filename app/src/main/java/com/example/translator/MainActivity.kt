@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -34,7 +35,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scrollTranscript: ScrollView
     private lateinit var tvStatus: TextView
     private lateinit var pulseIndicator: View
-    private lateinit var btnListenIcon: ImageView
+    private lateinit var btnListen: ImageButton
     
     private var speechRecognizer: SpeechRecognizer? = null
     private lateinit var tts: TextToSpeech
@@ -53,13 +54,14 @@ class MainActivity : AppCompatActivity() {
         scrollTranscript = findViewById(R.id.scrollTranscript)
         tvStatus = findViewById(R.id.tvStatus)
         pulseIndicator = findViewById(R.id.pulseIndicator)
-        btnListenIcon = findViewById(R.id.btnListenIcon)
+        btnListen = findViewById(R.id.btnListen)
 
-        findViewById<FrameLayout>(R.id.btnListenFrame).setOnClickListener { toggleListening() }
-        findViewById<Button>(R.id.btnSave).setOnClickListener { saveTranscript() }
+        btnListen.setOnClickListener { toggleListening() }
+        findViewById<ImageButton>(R.id.btnSave).setOnClickListener { saveTranscript() }
+        findViewById<ImageButton>(R.id.btnWhatsApp).setOnClickListener { shareToWhatsApp() }
+        findViewById<ImageButton>(R.id.btnShare).setOnClickListener { shareGeneral() }
         findViewById<Button>(R.id.btnClear).setOnClickListener { tvTranscript.text = "" }
         findViewById<Button>(R.id.btnReset).setOnClickListener { setupTranslators() }
-        
         findViewById<ToggleButton>(R.id.toggleFlavor).setOnCheckedChangeListener { _, isChecked -> 
             isRegionalFlavorEnabled = isChecked 
         }
@@ -80,7 +82,7 @@ class MainActivity : AppCompatActivity() {
                     else if (isListening) startListening()
                 }
                 override fun onError(p0: Int) { if (isListening) startListening() }
-                override fun onReadyForSpeech(p0: Bundle?) { tvStatus.text = "Listening..." }
+                override fun onReadyForSpeech(p0: Bundle?) { tvStatus.text = "LISTENING..." }
                 override fun onBeginningOfSpeech() { triggerPulse(Color.WHITE) }
                 override fun onRmsChanged(p0: Float) {}
                 override fun onBufferReceived(p0: ByteArray?) {}
@@ -95,11 +97,11 @@ class MainActivity : AppCompatActivity() {
         if (isListening) {
             isListening = false
             speechRecognizer?.stopListening()
-            btnListenIcon.setColorFilter(Color.WHITE)
+            btnListen.setColorFilter(Color.WHITE)
             tvStatus.text = "AI READY"
         } else {
             isListening = true
-            btnListenIcon.setColorFilter(Color.RED)
+            btnListen.setColorFilter(Color.RED)
             startListening()
         }
     }
@@ -154,6 +156,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun shareToWhatsApp() {
+        val text = tvTranscript.text.toString()
+        if (text.isEmpty()) return
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            `package` = "com.whatsapp"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        try { startActivity(intent) } catch (e: Exception) { Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun shareGeneral() {
+        val text = tvTranscript.text.toString()
+        if (text.isEmpty()) return
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        startActivity(Intent.createChooser(intent, "Share via DM/Email"))
+    }
+
+    private fun saveTranscript() {
+        val content = tvTranscript.text.toString()
+        if (content.isEmpty()) return
+        val name = "transcript_${System.currentTimeMillis()}.txt"
+        openFileOutput(name, Context.MODE_PRIVATE).use { it.write(content.toByteArray()) }
+        Toast.makeText(this, "Saved as $name", Toast.LENGTH_SHORT).show()
+    }
+
     private fun triggerPulse(color: Int) {
         runOnUiThread {
             pulseIndicator.backgroundTintList = ColorStateList.valueOf(color)
@@ -181,20 +212,12 @@ class MainActivity : AppCompatActivity() {
         val conditions = DownloadConditions.Builder().build()
         enEsTranslator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build())
         esEnTranslator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build())
-        tvStatus.text = "Syncing..."
+        tvStatus.text = "SYNCING AI..."
         enEsTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
             esEnTranslator.downloadModelIfNeeded(conditions).addOnSuccessListener {
                 runOnUiThread { tvStatus.text = "AI READY" }
             }
         }
-    }
-
-    private fun saveTranscript() {
-        val content = tvTranscript.text.toString()
-        if (content.isEmpty()) return
-        val name = "transcript_${System.currentTimeMillis()}.txt"
-        openFileOutput(name, Context.MODE_PRIVATE).use { it.write(content.toByteArray()) }
-        Toast.makeText(this, "Saved $name", Toast.LENGTH_SHORT).show()
     }
 
     private fun checkPermissions() {
