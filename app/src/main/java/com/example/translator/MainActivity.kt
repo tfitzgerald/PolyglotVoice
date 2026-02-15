@@ -48,13 +48,18 @@ class MainActivity : AppCompatActivity() {
         pulse1 = findViewById(R.id.pulse1)
         pulse2 = findViewById(R.id.pulse2)
 
+        // LISTENERS
         findViewById<Button>(R.id.btnClear).setOnClickListener { 
             tvTranscript.setText("", TextView.BufferType.SPANNABLE) 
         }
         
-        findViewById<Button>(R.id.btnSave).setOnClickListener { saveConversation() }
+        findViewById<Button>(R.id.btnSave).setOnClickListener { 
+            saveConversation() 
+        }
         
-        findViewById<Button>(R.id.btnReset).setOnClickListener { resetModels() }
+        findViewById<Button>(R.id.btnReset).setOnClickListener { 
+            resetModels() 
+        }
         
         findViewById<ToggleButton>(R.id.toggleRegional).setOnCheckedChangeListener { _, isChecked ->
             isRegionalFlavorEnabled = isChecked
@@ -75,6 +80,7 @@ class MainActivity : AppCompatActivity() {
         trans.translate(text).addOnSuccessListener { res ->
             val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyFlavor(res) else res
             
+            // CYAN for English, YELLOW for Spanish
             val inColor = if (loc.language == "es") Color.YELLOW else Color.CYAN
             val outColor = if (loc.language == "es") Color.CYAN else Color.YELLOW
 
@@ -113,30 +119,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveConversation() {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
-        val fileName = "Transcript_$timestamp.txt"
+        val fileName = "Log_$timestamp.txt"
         val content = tvTranscript.text.toString()
 
-        val docsDir = getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS)
-        val file = File(docsDir, fileName)
-
         try {
+            // Save to app-specific internal docs to ensure success without permission drama
+            val docsDir = getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS)
+            val file = File(docsDir, fileName)
             FileOutputStream(file).use { it.write(content.toByteArray()) }
             
+            // Pop up Share Sheet so user can move the file anywhere
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_TEXT, content)
             }
-            startActivity(Intent.createChooser(shareIntent, "Share Log"))
-            Toast.makeText(this, "Saved to App Documents", Toast.LENGTH_SHORT).show()
+            startActivity(Intent.createChooser(shareIntent, "Export Transcript"))
+            Toast.makeText(this, "Saved to App Folder", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Save Failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun setupTranslators() {
         val enEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
         val esEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
-        
         enEsTranslator = Translation.getClient(enEs)
         esEnTranslator = Translation.getClient(esEn)
         
@@ -201,9 +207,17 @@ class MainActivity : AppCompatActivity() {
         listOf(pulse1, pulse2).forEach { v ->
             v.visibility = View.VISIBLE
             v.backgroundTintList = ColorStateList.valueOf(c)
-            ObjectAnimator.ofFloat(v, "scaleX", 1f, 3f).apply { repeatCount = -1; duration = 1500; start() }
-            ObjectAnimator.ofFloat(v, "scaleY", 1f, 3f).apply { repeatCount = -1; duration = 1500; start() }
-            ObjectAnimator.ofFloat(v, "alpha", 1f, 0f).apply { repeatCount = -1; duration = 1500; start() }
+            val sX = ObjectAnimator.ofFloat(v, "scaleX", 1f, 3f)
+            val sY = ObjectAnimator.ofFloat(v, "scaleY", 1f, 3f)
+            val a = ObjectAnimator.ofFloat(v, "alpha", 1f, 0f)
+            AnimatorSet().apply {
+                duration = 1500
+                playTogether(sX, sY, a)
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(anim: Animator) { if (isListening) start() }
+                })
+                start()
+            }
         }
     }
 
