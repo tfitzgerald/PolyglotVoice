@@ -1,8 +1,9 @@
-package com.example.polyglotvoice
+package com.example.translator
 
 import android.Manifest
 import android.animation.*
 import android.content.*
+import android.content.pm.PackageManager // FIXED: Added missing import
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
@@ -44,7 +45,7 @@ class MainActivity : AppCompatActivity() {
         pulse1 = findViewById(R.id.pulse1)
         pulse2 = findViewById(R.id.pulse2)
 
-        // PHYSICAL BUTTON LISTENERS
+        // UI Listeners
         findViewById<Button>(R.id.btnClear).setOnClickListener { 
             fullHtmlTranscript = ""
             tvTranscript.text = "" 
@@ -72,8 +73,8 @@ class MainActivity : AppCompatActivity() {
         trans.translate(text).addOnSuccessListener { res ->
             val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyManzanilloFlavor(res) else res
             
-            // BRUTE FORCE COLORING VIA HTML
-            val inColor = if (loc.language == "es") "#FFFF00" else "#00FFFF" // Spanish Yellow, English Cyan
+            // HTML Coloring: Cyan (#00FFFF) and Yellow (#FFFF00)
+            val inColor = if (loc.language == "es") "#FFFF00" else "#00FFFF" 
             val outColor = if (loc.language == "es") "#00FFFF" else "#FFFF00" 
 
             val entry = "<font color='$inColor'>In: $text</font><br>" +
@@ -189,5 +190,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopContinuousMode() { isListening = false; pulse1.visibility = View.INVISIBLE; pulse2.visibility = View.INVISIBLE; speechRecognizer?.destroy() }
-    private fun checkPermissions() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) }
+    
+    private fun checkPermissions() { 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) 
+        }
+    }
 }
