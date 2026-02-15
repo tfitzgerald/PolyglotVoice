@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
         esEnTranslator = Translation.getClient(esEn)
         
         val cond = DownloadConditions.Builder().requireWifi().build()
-        tvStatus.text = "Downloading AI Models..."
+        tvStatus.text = "Syncing AI Models..."
         
         enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
             esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
@@ -93,11 +93,9 @@ class MainActivity : AppCompatActivity() {
         }
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(p: Bundle?) { runOnUiThread { tvStatus.text = "Listening..." } }
-            override fun onRmsChanged(rmsdB: Float) {
-                if (rmsdB > 5.0f && isListening) { runOnUiThread { pulse1.visibility = View.VISIBLE; pulse1.alpha = 0.4f } }
-            }
             override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
             override fun onResults(r: Bundle?) { r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detectLanguage(it) } }
+            override fun onRmsChanged(rmsdB: Float) {}
             override fun onBeginningOfSpeech() {}
             override fun onBufferReceived(b: ByteArray?) {}
             override fun onEndOfSpeech() {}

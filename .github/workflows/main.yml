@@ -1,47 +1,33 @@
-name: Build Polyglot Voice APK
+name: Build PolyglotVoice APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
 
-    - name: Find and Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: PolyglotVoice-Debug-APK
-        # Updated path to the debug folder
-        path: app/build/outputs/apk/debug/*.apk 
-
-    - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
-      with:
-        # Updated path to the debug folder
-        files: app/build/outputs/apk/debug/*.apk 
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
-        body: |
-          New Debug build generated automatically.
-          This version is signed with a debug key for easier installation.
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PolyglotVoice-Alpha
+          path: app/build/outputs/apk/debug/app-debug.apk
