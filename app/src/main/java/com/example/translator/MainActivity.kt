@@ -127,37 +127,34 @@ class MainActivity : AppCompatActivity() {
 	}
 	
 	private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
-		// 1. INPUT SANITIZATION
-		// Removes extra spaces and common speech-to-text "filler" characters
+		// 1. Clean the input to prevent "The Oldest" type errors
 		val cleanText = text.trim().replace(Regex("[.\\-_]"), "")
-		
-		if (cleanText.isEmpty() || cleanText.length < 2) return
+		if (cleanText.isEmpty()) return
 
+		// 2. Lock the microphone so the AI doesn't listen to its own voice
 		isAiSpeaking = true
 		
-		// 2. TRANSLATION EXECUTION
 		trans.translate(cleanText)
 			.addOnSuccessListener { translatedResult ->
-				// 3. APPLY REGIONAL FLAVOR (Optional Toggle)
+				// 3. Handle Regional Flavor if Spanish is the output
 				val finalOutput = if (loc.language == "es" && isRegionalFlavorEnabled) {
 					applyColimaFlavor(translatedResult)
 				} else {
 					translatedResult
 				}
 
-				// 4. UI UPDATE (Visual Feedback)
+				// 4. Define UI colors based on language
 				val inBg = if (loc.language == "es") BG_CYAN else BG_YELLOW
 				val outBg = if (loc.language == "es") BG_YELLOW else BG_CYAN
 
+				// 5. Build the visual transcript
 				val builder = SpannableStringBuilder()
 				
-				// Format Input Line
 				val sIn = SpannableString(" ➔ IN: $cleanText \n").apply { 
 					setSpan(BackgroundColorSpan(inBg), 0, length - 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 					setSpan(ForegroundColorSpan(Color.WHITE), 0, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 				}
 				
-				// Format Output Line
 				val sOut = SpannableString(" ➔ OUT: $finalOutput \n").apply { 
 					setSpan(BackgroundColorSpan(outBg), 0, length - 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 					setSpan(ForegroundColorSpan(Color.WHITE), 0, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
@@ -165,24 +162,28 @@ class MainActivity : AppCompatActivity() {
 				
 				builder.append(sIn).append("\n").append(sOut).append("\n")
 
+				// 6. Update UI on the Main Thread
 				runOnUiThread {
 					tvTranscript.append(builder)
-					// Auto-scroll to the bottom of the transcript
-					scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
+					scrollTranscript.post { 
+						scrollTranscript.fullScroll(View.FOCUS_DOWN) 
+					}
 				}
 
-				// 5. SPEECH OUTPUT
+				// 7. Speak the result
 				tts.language = loc
-				// Use QUEUE_FLUSH to stop any current speaking and prioritize the new translation
 				tts.speak(finalOutput, TextToSpeech.QUEUE_FLUSH, null, "UTT_ID")
 			}
 			.addOnFailureListener { e ->
+				// Critical: Unlock AI speaking state on error so app doesn't freeze
 				isAiSpeaking = false
 				runOnUiThread {
-					Toast.makeText(this, "Translation Error: ${e.message}", Toast.LENGTH_SHORT).show()
+					tvStatus.text = "Translation failed"
+					Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
 				}
 			}
 	}
+
     private fun applyColimaFlavor(t: String): String {
         var r = t
         val dict = mapOf("niño" to "chigüilín", "amigo" to "compa", "trabajo" to "chamba", "dinero" to "feria", "autobús" to "la ruta")
