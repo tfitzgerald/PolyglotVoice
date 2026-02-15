@@ -109,9 +109,18 @@ class MainActivity : AppCompatActivity() {
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(p: Bundle?) {}
             override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {
-                if (rmsdB > 2f && isListening) { runOnUiThread { pulse1.visibility = View.VISIBLE; pulse1.alpha = 0.4f } }
-            }
+			override fun onRmsChanged(rmsdB: Float) {
+				// Increase this value further (e.g., to 10f) if you are in a very loud area
+				if (rmsdB > 7.5f && isListening) { 
+					runOnUiThread {
+						pulse1.visibility = View.VISIBLE
+						pulse1.alpha = 0.4f
+					}
+				} else {
+					// Hide the pulse if the sound is below the threshold
+					runOnUiThread { pulse1.alpha = 0f }
+				}
+			}
             override fun onBufferReceived(b: ByteArray?) {}
             override fun onEndOfSpeech() {}
             override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
@@ -151,7 +160,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun stopContinuousMode() { isListening = false; pulse1.visibility = View.INVISIBLE; pulse2.visibility = View.INVISIBLE; speechRecognizer?.destroy() }
+    // private fun stopContinuousMode() { isListening = false; pulse1.visibility = View.INVISIBLE; pulse2.visibility = View.INVISIBLE; speechRecognizer?.destroy() }
+	private fun stopContinuousMode() { 
+		isListening = false
+		runOnUiThread {
+			pulse1.animate().alpha(0f).setDuration(200).start()
+			pulse2.animate().alpha(0f).setDuration(200).start()
+			pulse1.visibility = View.GONE
+			pulse2.visibility = View.GONE
+		}
+		speechRecognizer?.destroy() 
+	}
     private fun checkPermissions() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) }
     private fun setupTTS() { tts = TextToSpeech(this) { tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() { override fun onDone(id: String?) { isAiSpeaking = false; if (isListening) runOnUiThread { startContinuousMode() } }; override fun onStart(id: String?) { isAiSpeaking = true }; override fun onError(id: String?) { isAiSpeaking = false } }) } }
     private fun setupTranslators() {
