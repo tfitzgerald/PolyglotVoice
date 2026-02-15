@@ -1,5 +1,6 @@
 package com.example.polyglotvoice
 
+import android.text.Html
 import android.Manifest
 import android.animation.*
 import android.content.*
@@ -81,32 +82,27 @@ class MainActivity : AppCompatActivity() {
 		trans.translate(text).addOnSuccessListener { res ->
 			val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyFlavor(res) else res
 			
-			// Use high-saturation Hex colors for better visibility against dark backgrounds
-			val inColor = if (loc.language == "es") Color.parseColor("#FFFF00") else Color.parseColor("#00FFFF")
-			val outColor = if (loc.language == "es") Color.parseColor("#00FFFF") else Color.parseColor("#FFFF00")
+			// Use high-contrast Hex strings
+			val colorIn = if (loc.language == "es") "#FFFF00" else "#00FFFF" // Yellow vs Cyan
+			val colorOut = if (loc.language == "es") "#00FFFF" else "#FFFF00" // Cyan vs Yellow
 
-			// Build the "In" line with color
-			val sIn = SpannableString("In: $text\n")
-			sIn.setSpan(ForegroundColorSpan(inColor), 0, sIn.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-			
-			// Build the "Out" line with color
-			val sOut = SpannableString("Out: $out\n")
-			sOut.setSpan(ForegroundColorSpan(outColor), 0, sOut.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-
-			val divider = SpannableString("────────────────\n")
-			divider.setSpan(ForegroundColorSpan(Color.DKGRAY), 0, divider.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+			// Create HTML string blocks
+			val htmlLineIn = "<font color='$colorIn'><b>In:</b> $text</font><br/>"
+			val htmlLineOut = "<font color='$colorOut'><b>Out:</b> $out</font><br/>"
+			val htmlDivider = "<font color='#444444'>────────────────</font><br/>"
 
 			runOnUiThread {
-				// We append them one by one to ensure the buffer keeps the spans
-				tvTranscript.append(sIn)
-				tvTranscript.append(sOut)
-				tvTranscript.append(divider)
+				// Append HTML formatted text to the existing text
+				tvTranscript.append(Html.fromHtml(htmlLineIn + htmlLineOut + htmlDivider, Html.FROM_HTML_MODE_LEGACY))
 				
 				scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
 			}
 
 			tts.language = loc
 			tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
+		}.addOnFailureListener {
+			isAiSpeaking = false
+			if (isListening) startContinuousMode()
 		}
 	}
 
