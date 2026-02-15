@@ -66,81 +66,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupTranslators() {
-        val optionsEnEs = TranslatorOptions.Builder()
-            .setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
-        val optionsEsEn = TranslatorOptions.Builder()
-            .setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
-
-        enEsTranslator = Translation.getClient(optionsEnEs)
-        esEnTranslator = Translation.getClient(optionsEsEn)
-
-        val conditions = DownloadConditions.Builder().requireWifi().build()
+        val enEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
+        val esEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
+        enEsTranslator = Translation.getClient(enEs)
+        esEnTranslator = Translation.getClient(esEn)
         
-        tvStatus.text = "Loading Models..."
+        val cond = DownloadConditions.Builder().requireWifi().build()
+        tvStatus.text = "Downloading AI Models..."
         
-        // Parallel Download: Ensures both directions work
-        enEsTranslator.downloadModelIfNeeded(conditions)
-            .addOnSuccessListener {
-                esEnTranslator.downloadModelIfNeeded(conditions)
-                    .addOnSuccessListener { 
-                        runOnUiThread { tvStatus.text = "AI READY" } 
-                    }
-                    .addOnFailureListener { tvStatus.text = "Error downloading ES-EN" }
+        enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
+            esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
+                runOnUiThread { tvStatus.text = "AI READY" }
             }
-            .addOnFailureListener { tvStatus.text = "Error downloading EN-ES" }
-    }
-
-    private fun detectLanguage(text: String) {
-        LanguageIdentification.getClient().identifyLanguage(text)
-            .addOnSuccessListener { langCode ->
-                // Fix: If AI is unsure ("und") or identifies Spanish, force ES->EN
-                if (langCode == "es" || langCode == "und") {
-                    runOnUiThread { startPulse(BG_YELLOW) }
-                    translateAndSpeak(text, esEnTranslator, Locale.US)
-                } else {
-                    runOnUiThread { startPulse(BG_CYAN) }
-                    translateAndSpeak(text, enEsTranslator, Locale("es", "MX"))
-                }
-            }
-    }
-
-    private fun translateAndSpeak(text: String, translator: Translator, targetLocale: Locale) {
-        isAiSpeaking = true
-        speechRecognizer?.stopListening()
-
-        translator.translate(text).addOnSuccessListener { result ->
-            val finalOutput = if (targetLocale.language == "es" && isRegionalFlavorEnabled) applyColimaFlavor(result) else result
-            
-            val inBg = if (targetLocale.language == "es") BG_CYAN else BG_YELLOW
-            val outBg = if (targetLocale.language == "es") BG_YELLOW else BG_CYAN
-
-            val builder = SpannableStringBuilder()
-            val sIn = SpannableString(" In: $text \n").apply {
-                setSpan(BackgroundColorSpan(inBg), 0, length - 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                setSpan(ForegroundColorSpan(Color.WHITE), 0, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            }
-            val sOut = SpannableString(" Out: $finalOutput \n").apply {
-                setSpan(BackgroundColorSpan(outBg), 0, length - 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                setSpan(ForegroundColorSpan(Color.WHITE), 0, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            }
-
-            builder.append(sIn).append("\n").append(sOut).append("\n")
-            
-            runOnUiThread {
-                tvTranscript.append(builder)
-                scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
-            }
-
-            tts.language = targetLocale
-            tts.speak(finalOutput, TextToSpeech.QUEUE_FLUSH, null, "UTT")
         }
-    }
-
-    private fun applyColimaFlavor(t: String): String {
-        var r = t
-        val dict = mapOf("niño" to "chigüilín", "amigo" to "compa", "trabajo" to "chamba", "dinero" to "feria", "autobús" to "la ruta")
-        for ((k, v) in dict) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
-        return r
     }
 
     private fun startContinuousMode() {
@@ -149,30 +87,69 @@ class MainActivity : AppCompatActivity() {
         startPulse(Color.GRAY)
         speechRecognizer?.destroy()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-        
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
-
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(p: Bundle?) { runOnUiThread { tvStatus.text = "Listening..." } }
-            override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {
-                if (rmsdB > 5.0f && isListening) { 
-                    runOnUiThread { pulse1.visibility = View.VISIBLE; pulse1.alpha = 0.4f } 
-                }
+                if (rmsdB > 5.0f && isListening) { runOnUiThread { pulse1.visibility = View.VISIBLE; pulse1.alpha = 0.4f } }
             }
+            override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
+            override fun onResults(r: Bundle?) { r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detectLanguage(it) } }
+            override fun onBeginningOfSpeech() {}
             override fun onBufferReceived(b: ByteArray?) {}
             override fun onEndOfSpeech() {}
-            override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
-            override fun onResults(r: Bundle?) { 
-                r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detectLanguage(it) } 
-            }
             override fun onPartialResults(p: Bundle?) {}
             override fun onEvent(i: Int, b: Bundle?) {}
         })
         speechRecognizer?.startListening(intent)
+    }
+
+    private fun detectLanguage(text: String) {
+        LanguageIdentification.getClient().identifyLanguage(text).addOnSuccessListener { lang ->
+            if (lang == "en") {
+                runOnUiThread { startPulse(BG_CYAN) }
+                translateAndSpeak(text, enEsTranslator, Locale("es", "MX"))
+            } else {
+                runOnUiThread { startPulse(BG_YELLOW) }
+                translateAndSpeak(text, esEnTranslator, Locale.US)
+            }
+        }
+    }
+
+    private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
+        isAiSpeaking = true
+        trans.translate(text).addOnSuccessListener { res ->
+            val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyColimaFlavor(res) else res
+            val inBg = if (loc.language == "es") BG_CYAN else BG_YELLOW
+            val outBg = if (loc.language == "es") BG_YELLOW else BG_CYAN
+
+            val builder = SpannableStringBuilder()
+            val sIn = SpannableString(" In: $text \n").apply { 
+                setSpan(BackgroundColorSpan(inBg), 0, length - 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                setSpan(ForegroundColorSpan(Color.WHITE), 0, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            val sOut = SpannableString(" Out: $out \n").apply { 
+                setSpan(BackgroundColorSpan(outBg), 0, length - 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                setSpan(ForegroundColorSpan(Color.WHITE), 0, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            builder.append(sIn).append("\n").append(sOut).append("\n")
+            runOnUiThread {
+                tvTranscript.append(builder)
+                scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
+            }
+            tts.language = loc
+            tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
+        }
+    }
+
+    private fun applyColimaFlavor(t: String): String {
+        var r = t
+        val dict = mapOf("niño" to "chigüilín", "amigo" to "compa", "trabajo" to "chamba", "dinero" to "feria", "autobús" to "la ruta")
+        for ((k, v) in dict) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
+        return r
     }
 
     private fun startPulse(color: Int) {
@@ -186,9 +163,7 @@ class MainActivity : AppCompatActivity() {
                 AnimatorSet().apply {
                     duration = 1500
                     playTogether(sX, sY, alpha)
-                    addListener(object : AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(a: Animator) { if (isListening) start() }
-                    })
+                    addListener(object : AnimatorListenerAdapter() { override fun onAnimationEnd(a: Animator) { if (isListening) start() } })
                     start()
                 }
             }
@@ -201,20 +176,13 @@ class MainActivity : AppCompatActivity() {
         speechRecognizer?.destroy() 
     }
 
-    private fun checkPermissions() { 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
-        }
-    }
+    private fun checkPermissions() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) }
 
     private fun setupTTS() { 
         tts = TextToSpeech(this) { status ->
             if (status != TextToSpeech.ERROR) {
                 tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() { 
-                    override fun onDone(id: String?) { 
-                        isAiSpeaking = false
-                        if (isListening) runOnUiThread { startContinuousMode() } 
-                    }
+                    override fun onDone(id: String?) { isAiSpeaking = false; if (isListening) runOnUiThread { startContinuousMode() } }
                     override fun onStart(id: String?) { isAiSpeaking = true }
                     override fun onError(id: String?) { isAiSpeaking = false } 
                 })
@@ -228,10 +196,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val file = File(getExternalFilesDir(null), "Polyglot_$timestamp.txt")
             FileOutputStream(file).use { it.write(content.toByteArray()) }
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, content)
-            }
+            val intent = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, content) }
             startActivity(Intent.createChooser(intent, "Share via..."))
         } catch (e: Exception) { Toast.makeText(this, "Save Error", Toast.LENGTH_SHORT).show() }
     }
@@ -239,8 +204,7 @@ class MainActivity : AppCompatActivity() {
     private fun resetModels() { 
         val manager = RemoteModelManager.getInstance()
         manager.deleteDownloadedModel(TranslateRemoteModel.Builder(TranslateLanguage.ENGLISH).build())
-        manager.deleteDownloadedModel(TranslateRemoteModel.Builder(TranslateLanguage.SPANISH).build())
-            .addOnSuccessListener { setupTranslators() } 
+        manager.deleteDownloadedModel(TranslateRemoteModel.Builder(TranslateLanguage.SPANISH).build()).addOnSuccessListener { setupTranslators() } 
     }
 
     override fun onDestroy() {

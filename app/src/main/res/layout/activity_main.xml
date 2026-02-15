@@ -20,7 +20,6 @@
             android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_save"
-            android:contentDescription="Save"
             app:tint="#00FFFF" />
 
         <ToggleButton
@@ -32,9 +31,7 @@
             android:textOff="🌶️ OFF"
             android:backgroundTint="#2C2C2C"
             android:textColor="#FFFFFF"
-            android:textSize="10sp"
-            android:minWidth="0dp"
-            android:minHeight="0dp" />
+            android:textSize="10sp" />
 
         <ImageButton
             android:id="@+id/btnReset"
@@ -43,13 +40,9 @@
             android:layout_marginStart="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_popup_sync"
-            android:contentDescription="Reset"
             app:tint="#FFFFFF" />
 
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+        <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
 
         <ImageButton
             android:id="@+id/btnClear"
@@ -57,7 +50,6 @@
             android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_delete"
-            android:contentDescription="Clear"
             app:tint="#FF5555" />
     </LinearLayout>
 
@@ -65,27 +57,22 @@
         android:id="@+id/tvStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Initializing AI..."
+        android:text="Initializing..."
         android:textColor="#00FF00"
         android:gravity="center"
-        android:padding="4dp"
         android:textSize="12sp" />
 
     <ScrollView
         android:id="@+id/scrollTranscript"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginVertical="8dp">
-        
+        android:layout_weight="1">
         <TextView
             android:id="@+id/tvTranscript"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="14dp"
             android:textSize="20sp"
-            android:lineSpacingExtra="8dp"
-            android:bufferType="spannable"
             android:textColor="#FFFFFF" />
     </ScrollView>
 
@@ -93,20 +80,9 @@
         android:layout_width="150dp"
         android:layout_height="150dp"
         android:layout_gravity="center"
-        android:layout_marginBottom="24dp">
-        
-        <View android:id="@+id/pulse1" 
-            android:layout_width="match_parent" 
-            android:layout_height="match_parent" 
-            android:background="@drawable/circle_shape" 
-            android:visibility="invisible" />
-            
-        <View android:id="@+id/pulse2" 
-            android:layout_width="match_parent" 
-            android:layout_height="match_parent" 
-            android:background="@drawable/circle_shape" 
-            android:visibility="invisible" />
-            
+        android:layout_marginBottom="20dp">
+        <View android:id="@+id/pulse1" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/circle_shape" android:visibility="invisible" />
+        <View android:id="@+id/pulse2" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/circle_shape" android:visibility="invisible" />
         <ImageButton
             android:id="@+id/btnListen"
             android:layout_width="72dp"
