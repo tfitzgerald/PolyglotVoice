@@ -3,23 +3,23 @@ package com.example.polyglotvoice
 import android.Manifest
 import android.animation.*
 import android.content.*
-import android.content.pm.PackageManager 
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.speech.*
 import android.speech.tts.*
-import android.text.Html
+import android.text.*
+import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.polyglotvoice.R // FIXED: Matches your namespace
+import com.example.polyglotvoice.R
 import com.google.mlkit.common.model.*
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.translate.*
-import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -28,8 +28,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pulse1: View
     private lateinit var pulse2: View
     private var isRegionalFlavorEnabled = false
-    private var fullHtmlTranscript = ""
-
     private var speechRecognizer: SpeechRecognizer? = null
     private lateinit var tts: TextToSpeech
     private lateinit var enEsTranslator: Translator
@@ -46,17 +44,13 @@ class MainActivity : AppCompatActivity() {
         pulse1 = findViewById(R.id.pulse1)
         pulse2 = findViewById(R.id.pulse2)
 
-        // UI Listeners - Clear button on the right
         findViewById<Button>(R.id.btnClear).setOnClickListener { 
-            fullHtmlTranscript = ""
-            tvTranscript.text = "" 
+            tvTranscript.setText("", TextView.BufferType.SPANNABLE) 
         }
-        findViewById<Button>(R.id.btnSave).setOnClickListener { saveConversation() }
+        findViewById<Button>(R.id.btnSave).setOnClickListener { /* Add save logic if needed */ }
         findViewById<Button>(R.id.btnReset).setOnClickListener { resetModels() }
         findViewById<ToggleButton>(R.id.toggleRegional).setOnCheckedChangeListener { _, isChecked ->
             isRegionalFlavorEnabled = isChecked
-            val border = if (isChecked) Color.parseColor("#FFD700") else Color.parseColor("#444444")
-            scrollTranscript.backgroundTintList = ColorStateList.valueOf(border)
         }
 
         checkPermissions()
@@ -68,52 +62,45 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-	private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
-		isAiSpeaking = true
-		speechRecognizer?.stopListening()
-		
-		trans.translate(text).addOnSuccessListener { res ->
-			val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyManzanilloFlavor(res) else res
-			
-			// HIGHER CONTRAST COLORS
-			// English (In or Out): Cyan (#00FFFF)
-			// Spanish (In or Out): Yellow (#FFFF00)
-			val inColor = if (loc.language == "es") "#FFFF00" else "#00FFFF" 
-			val outColor = if (loc.language == "es") "#00FFFF" else "#FFFF00" 
+    private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
+        isAiSpeaking = true
+        speechRecognizer?.stopListening()
+        trans.translate(text).addOnSuccessListener { res ->
+            val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyFlavor(res) else res
+            
+            val inColor = if (loc.language == "es") Color.YELLOW else Color.CYAN
+            val outColor = if (loc.language == "es") Color.CYAN else Color.YELLOW
 
-			// Create a distinct block for each entry
-			val entry = "<br><font color='$inColor'><b>In:</b> $text</font><br>" +
-						"<font color='$outColor'><b>Out:</b> $out</font><br>" +
-						"<font color='#555555'>────────────────</font>"
-			
-			fullHtmlTranscript += entry
+            val sIn = SpannableString("In: $text\n")
+            sIn.setSpan(ForegroundColorSpan(inColor), 0, sIn.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            val sOut = SpannableString("Out: $out\n---\n")
+            sOut.setSpan(ForegroundColorSpan(outColor), 0, sOut.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
-			// FORCE RE-RENDER ON UI THREAD
-			runOnUiThread {
-				tvTranscript.setText(
-					Html.fromHtml(fullHtmlTranscript, Html.FROM_HTML_MODE_LEGACY), 
-					TextView.BufferType.SPANNABLE
-				)
-				scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
-			}
+            runOnUiThread {
+                tvTranscript.append(sIn)
+                tvTranscript.append(sOut)
+                scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
+            }
 
-			tts.language = loc
-			tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
-		}
-	}
+            tts.language = loc
+            tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
+        }
+    }
 
-    private fun applyManzanilloFlavor(t: String): String {
-        var res = t
-        val dict = mapOf("niño" to "chigüilín", "amigo" to "compa", "autobús" to "camión", "trabajo" to "chamba", "dinero" to "feria")
-        for ((s, l) in dict) res = res.replace("(?i)\\b$s\\b".toRegex(), l)
-        return res
+    private fun applyFlavor(t: String): String {
+        var r = t
+        val d = mapOf("niño" to "chigüilín", "amigo" to "compa", "trabajo" to "chamba")
+        for ((k, v) in d) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
+        return r
     }
 
     private fun setupTranslators() {
-        val optEnEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
-        val optEsEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
-        enEsTranslator = Translation.getClient(optEnEs)
-        esEnTranslator = Translation.getClient(optEsEn)
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
+        enEsTranslator = Translation.getClient(options)
+        esEnTranslator = Translation.getClient(TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build())
+        
         val cond = DownloadConditions.Builder().requireWifi().build()
         enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
             esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { 
@@ -135,7 +122,7 @@ class MainActivity : AppCompatActivity() {
     private fun startContinuousMode() {
         if (isAiSpeaking) return
         isListening = true
-        startPulseAnimation(Color.LTGRAY)
+        startPulse(Color.LTGRAY)
         speechRecognizer?.destroy()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -143,7 +130,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
         }
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-            override fun onResults(r: Bundle?) { r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detectAndTranslate(it) } }
+            override fun onResults(r: Bundle?) { r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detect(it) } }
             override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
             override fun onReadyForSpeech(p0: Bundle?) {}
             override fun onBeginningOfSpeech() {}
@@ -156,21 +143,22 @@ class MainActivity : AppCompatActivity() {
         speechRecognizer?.startListening(intent)
     }
 
-    private fun detectAndTranslate(text: String) {
+    private fun detect(text: String) {
         LanguageIdentification.getClient().identifyLanguage(text).addOnSuccessListener { lang ->
-            when (lang) {
-                "es" -> { updatePulseColor(Color.RED); translateAndSpeak(text, esEnTranslator, Locale.US) }
-                "en" -> { updatePulseColor(Color.BLUE); translateAndSpeak(text, enEsTranslator, Locale("es", "MX")) }
-                else -> if (isListening) startContinuousMode()
-            }
+            if (lang == "es") translateAndSpeak(text, esEnTranslator, Locale.US)
+            else if (lang == "en") translateAndSpeak(text, enEsTranslator, Locale("es", "MX"))
+            else if (isListening) startContinuousMode()
         }
     }
 
-    private fun saveConversation() {
-        val name = "Log_${System.currentTimeMillis()}.txt"
-        val cleanText = Html.fromHtml(fullHtmlTranscript, Html.FROM_HTML_MODE_LEGACY).toString()
-        openFileOutput(name, Context.MODE_PRIVATE).use { it.write(cleanText.toByteArray()) }
-        Toast.makeText(this, "Saved: $name", Toast.LENGTH_SHORT).show()
+    private fun startPulse(c: Int) {
+        listOf(pulse1, pulse2).forEach { v ->
+            v.visibility = View.VISIBLE
+            v.backgroundTintList = ColorStateList.valueOf(c)
+            ObjectAnimator.ofFloat(v, "scaleX", 1f, 3f).apply { repeatCount = -1; duration = 1500; start() }
+            ObjectAnimator.ofFloat(v, "scaleY", 1f, 3f).apply { repeatCount = -1; duration = 1500; start() }
+            ObjectAnimator.ofFloat(v, "alpha", 1f, 0f).apply { repeatCount = -1; duration = 1500; start() }
+        }
     }
 
     private fun resetModels() {
@@ -180,33 +168,6 @@ class MainActivity : AppCompatActivity() {
         manager.deleteDownloadedModel(en); manager.deleteDownloadedModel(es).addOnSuccessListener { setupTranslators() }
     }
 
-    private fun startPulseAnimation(color: Int) {
-        val pulses = listOf(pulse1, pulse2)
-        pulses.forEachIndexed { i, v ->
-            v.visibility = View.VISIBLE
-            v.backgroundTintList = ColorStateList.valueOf(color)
-            val sX = ObjectAnimator.ofFloat(v, "scaleX", 1f, 3f)
-            val sY = ObjectAnimator.ofFloat(v, "scaleY", 1f, 3f)
-            val a = ObjectAnimator.ofFloat(v, "alpha", 1f, 0f)
-            AnimatorSet().apply {
-                duration = 1500; startDelay = (i * 750).toLong()
-                playTogether(sX, sY, a)
-                addListener(object : AnimatorListenerAdapter() { override fun onAnimationEnd(anim: Animator) { if (isListening) start() } })
-                start()
-            }
-        }
-    }
-
-    private fun updatePulseColor(c: Int) {
-        pulse1.backgroundTintList = ColorStateList.valueOf(c)
-        pulse2.backgroundTintList = ColorStateList.valueOf(c)
-    }
-
     private fun stopContinuousMode() { isListening = false; pulse1.visibility = View.INVISIBLE; pulse2.visibility = View.INVISIBLE; speechRecognizer?.destroy() }
-    
-    private fun checkPermissions() { 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) 
-        }
-    }
+    private fun checkPermissions() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) }
 }
