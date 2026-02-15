@@ -3,8 +3,6 @@ name: Build PolyglotVoice APK
 on:
   push:
     branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
 
 jobs:
   build:
@@ -20,14 +18,8 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Grant Execute Permission for Gradlew
+      - name: Grant Execute Permission
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: PolyglotVoice-Alpha
-          path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Clean and Build
+        run: ./gradlew clean assembleDebug --no-daemon --stacktrace

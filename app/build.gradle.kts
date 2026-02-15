@@ -1,6 +1,6 @@
 plugins {
-    id("com.android.application") version "8.13.0"
-    id("org.jetbrains.kotlin.android") version "1.9.24"
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
 }
 
 android {
@@ -38,7 +38,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    // Latest ML Kit versions for high-accuracy translation
+    
+    // ML Kit for Translation & Language ID
     implementation("com.google.mlkit:translate:17.0.3")
     implementation("com.google.mlkit:language-id:17.0.6")
 }
