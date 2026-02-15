@@ -64,41 +64,46 @@ class MainActivity : AppCompatActivity() {
         setupTranslators()
     }
 
-    private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
-        isAiSpeaking = true
-        speechRecognizer?.stopListening()
-        
-        trans.translate(text).addOnSuccessListener { res ->
-            val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyRegionalFlavor(res) else res
-            
-            // Logic: Source = English -> Out = Spanish (Yellow). Source = Spanish -> Out = English (Cyan).
-            val inColor = if (loc.language == "es") YELLOW else CYAN
-            val outColor = if (loc.language == "es") CYAN else YELLOW
+	private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
+		isAiSpeaking = true
+		speechRecognizer?.stopListening()
+		
+		trans.translate(text).addOnSuccessListener { res ->
+			val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyRegionalFlavor(res) else res
+			
+			// Use high-saturation Hex colors for better visibility
+			val colorCyan = Color.parseColor("#00FFFF")   // Pure Cyan
+			val colorYellow = Color.parseColor("#FFFF00") // Pure Yellow
 
-            runOnUiThread { startPulse(outColor) }
+			// Identify colors based on the language of the INPUT text
+			// If loc is US, the AI is speaking English (Output), meaning Input was Spanish (Yellow)
+			val inColor = if (loc.language == "en") YELLOW else CYAN
+			val outColor = if (loc.language == "en") CYAN else YELLOW
 
-            val sIn = SpannableStringBuilder("In: $text\n")
-            sIn.setSpan(ForegroundColorSpan(inColor), 0, sIn.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            sIn.setSpan(StyleSpan(Typeface.BOLD), 0, 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+			// FORCE PULSE COLOR IMMEDIATELY
+			runOnUiThread { startPulse(inColor) } 
 
-            val sOut = SpannableStringBuilder("Out: $out\n")
-            sOut.setSpan(ForegroundColorSpan(outColor), 0, sOut.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            sOut.setSpan(StyleSpan(Typeface.BOLD), 0, 4, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+			val sIn = SpannableString("In: $text\n")
+			// SPAN_POINT_MARK is harder for the system to ignore
+			sIn.setSpan(ForegroundColorSpan(inColor), 0, sIn.length, Spannable.SPAN_POINT_MARK)
+			
+			val sOut = SpannableString("Out: $out\n")
+			sOut.setSpan(ForegroundColorSpan(outColor), 0, sOut.length, Spannable.SPAN_POINT_MARK)
 
-            val div = SpannableString("────────────────\n")
-            div.setSpan(ForegroundColorSpan(GRAY), 0, div.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+			val div = SpannableString("────────────────\n")
+			div.setSpan(ForegroundColorSpan(Color.DKGRAY), 0, div.length, Spannable.SPAN_POINT_MARK)
 
-            runOnUiThread {
-                tvTranscript.append(sIn)
-                tvTranscript.append(sOut)
-                tvTranscript.append(div)
-                scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
-            }
+			runOnUiThread {
+				tvTranscript.append(sIn)
+				tvTranscript.append(sOut)
+				tvTranscript.append(div)
+				scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
+			}
 
-            tts.language = loc
-            tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
-        }
-    }
+			tts.language = loc
+			tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
+		}
+	}
 
     private fun applyRegionalFlavor(t: String): String {
         var r = t
@@ -174,23 +179,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun startPulse(color: Int) {
-        listOf(pulse1, pulse2).forEach { v ->
-            v.visibility = View.VISIBLE
-            v.backgroundTintList = ColorStateList.valueOf(color)
-            val sX = ObjectAnimator.ofFloat(v, "scaleX", 1f, 3.5f)
-            val sY = ObjectAnimator.ofFloat(v, "scaleY", 1f, 3.5f)
-            val alpha = ObjectAnimator.ofFloat(v, "alpha", 0.7f, 0f)
-            AnimatorSet().apply {
-                duration = 1600
-                playTogether(sX, sY, alpha)
-                addListener(object : AnimatorListenerAdapter() { 
-                    override fun onAnimationEnd(a: Animator) { if (isListening) start() } 
-                })
-                start()
-            }
-        }
-    }
+	private fun startPulse(color: Int) {
+		runOnUiThread {
+			listOf(pulse1, pulse2).forEach { v ->
+				v.visibility = View.VISIBLE
+				// This is the hardware command to change the color of the circle
+				v.backgroundTintList = ColorStateList.valueOf(color) 
+				
+				val sX = ObjectAnimator.ofFloat(v, "scaleX", 1f, 4f)
+				val sY = ObjectAnimator.ofFloat(v, "scaleY", 1f, 4f)
+				val alpha = ObjectAnimator.ofFloat(v, "alpha", 0.8f, 0f)
+				
+				AnimatorSet().apply {
+					duration = 1200
+					playTogether(sX, sY, alpha)
+					addListener(object : AnimatorListenerAdapter() {
+						override fun onAnimationEnd(animation: Animator) {
+							if (isListening) start()
+						}
+					})
+					start()
+				}
+			}
+		}
+	}
 
     private fun stopContinuousMode() { isListening = false; pulse1.visibility = View.INVISIBLE; pulse2.visibility = View.INVISIBLE; speechRecognizer?.destroy() }
     private fun checkPermissions() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1) }
