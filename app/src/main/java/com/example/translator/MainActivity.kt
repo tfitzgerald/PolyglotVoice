@@ -74,41 +74,41 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
-        isAiSpeaking = true
-        speechRecognizer?.stopListening()
-        trans.translate(text).addOnSuccessListener { res ->
-            val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyFlavor(res) else res
-            
-            // CYAN for English, YELLOW for Spanish
-            val inColor = if (loc.language == "es") Color.YELLOW else Color.CYAN
-            val outColor = if (loc.language == "es") Color.CYAN else Color.YELLOW
+	private fun translateAndSpeak(text: String, trans: Translator, loc: Locale) {
+		isAiSpeaking = true
+		speechRecognizer?.stopListening()
+		
+		trans.translate(text).addOnSuccessListener { res ->
+			val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyFlavor(res) else res
+			
+			// Use high-saturation Hex colors for better visibility against dark backgrounds
+			val inColor = if (loc.language == "es") Color.parseColor("#FFFF00") else Color.parseColor("#00FFFF")
+			val outColor = if (loc.language == "es") Color.parseColor("#00FFFF") else Color.parseColor("#FFFF00")
 
-            val sIn = SpannableStringBuilder("In: $text\n")
-            sIn.setSpan(ForegroundColorSpan(inColor), 0, sIn.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            sIn.setSpan(StyleSpan(android.graphics.Typeface.BOLD), 0, 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+			// Build the "In" line with color
+			val sIn = SpannableString("In: $text\n")
+			sIn.setSpan(ForegroundColorSpan(inColor), 0, sIn.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+			
+			// Build the "Out" line with color
+			val sOut = SpannableString("Out: $out\n")
+			sOut.setSpan(ForegroundColorSpan(outColor), 0, sOut.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
-            val sOut = SpannableStringBuilder("Out: $out\n")
-            sOut.setSpan(ForegroundColorSpan(outColor), 0, sOut.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            sOut.setSpan(StyleSpan(android.graphics.Typeface.BOLD), 0, 4, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+			val divider = SpannableString("────────────────\n")
+			divider.setSpan(ForegroundColorSpan(Color.DKGRAY), 0, divider.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
-            val divider = SpannableString("────────────────\n")
-            divider.setSpan(ForegroundColorSpan(Color.DKGRAY), 0, divider.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+			runOnUiThread {
+				// We append them one by one to ensure the buffer keeps the spans
+				tvTranscript.append(sIn)
+				tvTranscript.append(sOut)
+				tvTranscript.append(divider)
+				
+				scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
+			}
 
-            runOnUiThread {
-                tvTranscript.append(sIn)
-                tvTranscript.append(sOut)
-                tvTranscript.append(divider)
-                scrollTranscript.post { scrollTranscript.fullScroll(View.FOCUS_DOWN) }
-            }
-
-            tts.language = loc
-            tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
-        }.addOnFailureListener {
-            isAiSpeaking = false
-            if (isListening) startContinuousMode()
-        }
-    }
+			tts.language = loc
+			tts.speak(out, TextToSpeech.QUEUE_FLUSH, null, "UTT")
+		}
+	}
 
     private fun applyFlavor(t: String): String {
         var r = t
