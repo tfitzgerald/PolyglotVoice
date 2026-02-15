@@ -39,10 +39,10 @@ class MainActivity : AppCompatActivity() {
     private var isListening = false
     private var isAiSpeaking = false
 
-    // Hardware-Level Colors
+    // Hardware Colors (Explicit Hex)
     private val CYAN = 0xFF00FFFF.toInt()
     private val YELLOW = 0xFFFFFF00.toInt()
-    private val GRAY = 0xFF666666.toInt()
+    private val GRAY = 0xFF555555.toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,8 +69,9 @@ class MainActivity : AppCompatActivity() {
         speechRecognizer?.stopListening()
         
         trans.translate(text).addOnSuccessListener { res ->
-            val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyManzanilloFlavor(res) else res
+            val out = if (loc.language == "es" && isRegionalFlavorEnabled) applyRegionalFlavor(res) else res
             
+            // Logic: Source = English -> Out = Spanish (Yellow). Source = Spanish -> Out = English (Cyan).
             val inColor = if (loc.language == "es") YELLOW else CYAN
             val outColor = if (loc.language == "es") CYAN else YELLOW
 
@@ -99,10 +100,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyManzanilloFlavor(t: String): String {
+    private fun applyRegionalFlavor(t: String): String {
         var r = t
-        val d = mapOf("niño" to "chigüilín", "amigo" to "compa", "trabajo" to "chamba", "dinero" to "feria", "autobús" to "la ruta")
-        for ((k, v) in d) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
+        val dictionary = mapOf("niño" to "chigüilín", "amigo" to "compa", "trabajo" to "chamba", "dinero" to "feria")
+        for ((k, v) in dictionary) r = r.replace("(?i)\\b$k\\b".toRegex(), v)
         return r
     }
 
@@ -110,23 +111,26 @@ class MainActivity : AppCompatActivity() {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
         val content = tvTranscript.text.toString()
         try {
-            val file = File(getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS), "Transcript_$timestamp.txt")
+            val file = File(getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS), "PolyglotLog_$timestamp.txt")
             FileOutputStream(file).use { it.write(content.toByteArray()) }
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_TEXT, content)
             }
-            startActivity(Intent.createChooser(intent, "Share via WhatsApp/DM"))
+            startActivity(Intent.createChooser(intent, "Share/DM Transcript"))
         } catch (e: Exception) { Toast.makeText(this, "Save Failed", Toast.LENGTH_SHORT).show() }
     }
 
     private fun setupTranslators() {
-        val options = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
-        enEsTranslator = Translation.getClient(options)
-        esEnTranslator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build())
+        val enEs = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.ENGLISH).setTargetLanguage(TranslateLanguage.SPANISH).build()
+        val esEn = TranslatorOptions.Builder().setSourceLanguage(TranslateLanguage.SPANISH).setTargetLanguage(TranslateLanguage.ENGLISH).build()
+        enEsTranslator = Translation.getClient(enEs)
+        esEnTranslator = Translation.getClient(esEn)
         val cond = DownloadConditions.Builder().requireWifi().build()
         enEsTranslator.downloadModelIfNeeded(cond).addOnSuccessListener {
-            esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { findViewById<TextView>(R.id.tvStatus).text = "AI Ready" }
+            esEnTranslator.downloadModelIfNeeded(cond).addOnSuccessListener { 
+                findViewById<TextView>(R.id.tvStatus).text = "AI READY" 
+            }
         }
     }
 
@@ -150,7 +154,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
         }
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-            override fun onResults(r: Bundle?) { r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detect(it) } }
+            override fun onResults(r: Bundle?) { r?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?.let { detectLanguage(it) } }
             override fun onError(e: Int) { if (isListening && !isAiSpeaking) startContinuousMode() }
             override fun onReadyForSpeech(p0: Bundle?) {}
             override fun onBeginningOfSpeech() {}
@@ -163,7 +167,7 @@ class MainActivity : AppCompatActivity() {
         speechRecognizer?.startListening(intent)
     }
 
-    private fun detect(text: String) {
+    private fun detectLanguage(text: String) {
         LanguageIdentification.getClient().identifyLanguage(text).addOnSuccessListener { lang ->
             if (lang == "es") translateAndSpeak(text, esEnTranslator, Locale.US)
             else translateAndSpeak(text, enEsTranslator, Locale("es", "MX"))
@@ -174,13 +178,15 @@ class MainActivity : AppCompatActivity() {
         listOf(pulse1, pulse2).forEach { v ->
             v.visibility = View.VISIBLE
             v.backgroundTintList = ColorStateList.valueOf(color)
-            val sX = ObjectAnimator.ofFloat(v, "scaleX", 1f, 3f)
-            val sY = ObjectAnimator.ofFloat(v, "scaleY", 1f, 3f)
-            val alpha = ObjectAnimator.ofFloat(v, "alpha", 0.6f, 0f)
+            val sX = ObjectAnimator.ofFloat(v, "scaleX", 1f, 3.5f)
+            val sY = ObjectAnimator.ofFloat(v, "scaleY", 1f, 3.5f)
+            val alpha = ObjectAnimator.ofFloat(v, "alpha", 0.7f, 0f)
             AnimatorSet().apply {
-                duration = 1500
+                duration = 1600
                 playTogether(sX, sY, alpha)
-                addListener(object : AnimatorListenerAdapter() { override fun onAnimationEnd(a: Animator) { if (isListening) start() } })
+                addListener(object : AnimatorListenerAdapter() { 
+                    override fun onAnimationEnd(a: Animator) { if (isListening) start() } 
+                })
                 start()
             }
         }
