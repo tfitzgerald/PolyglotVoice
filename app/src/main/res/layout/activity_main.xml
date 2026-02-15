@@ -39,8 +39,8 @@
 		android:layout_height="wrap_content"
 		android:padding="12dp"
 		android:textSize="18sp"
-		android:background="#121212"
-		android:textColor="#FFFFFF" />
+		android:bufferType="spannable"
+		android:background="#121212" />
     </ScrollView>
 
     <FrameLayout
